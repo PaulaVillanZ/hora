@@ -339,8 +339,11 @@ function ClaseModal({initialForm,onSave,onDelete,onClose,editId,classes,docentes
   );
 }
 
-function GestionView({docentes,salones,sedes,sede,materias,setMaterias,classes,border,text,muted,surface,canEdit,onNewDoc,onEditDoc,onNewSede,onEditSede,onDelSalon,newSalon,setNewSalon,saveSalon,gTab,setGTab}){
+function GestionView({docentes,salones,sedes,sede,materias,setMaterias,classes,border,text,muted,surface,canEdit,onNewDoc,onEditDoc,onNewSede,onEditSede,onDelSalon,onEditSalon,newSalon,setNewSalon,saveSalon,gTab,setGTab}){
   const [matModal,setMatModal]=useState(null);
+  const [salonSede,setSalonSede]=useState(sede);
+  const [editSalon,setEditSalon]=useState(null);
+  const [editSalonVal,setEditSalonVal]=useState("");
 
   const handleSaveMat=(mat)=>{
     const existe=materias.find(m=>m.id===mat.id);
@@ -433,24 +436,57 @@ function GestionView({docentes,salones,sedes,sede,materias,setMaterias,classes,b
 
       {gTab==="salones"&&(
         <div>
+          {/* Selector de sede */}
+          <div style={{display:"flex",gap:8,marginBottom:16,alignItems:"center",flexWrap:"wrap"}}>
+            <span style={{fontSize:12,color:muted,fontWeight:600}}>Sede:</span>
+            {sedes.map(s=>(
+              <button key={s.id} onClick={()=>setSalonSede(s.id)}
+                style={{padding:"5px 14px",borderRadius:16,border:`2px solid ${s.color}`,cursor:"pointer",fontSize:12,fontWeight:600,
+                  background:salonSede===s.id?s.color:"transparent",color:salonSede===s.id?"#fff":s.color}}>
+                {s.name}
+              </button>
+            ))}
+          </div>
+
+          {/* Agregar salón */}
           {canEdit&&(
-            <div style={{display:"flex",gap:8,marginBottom:16,flexWrap:"wrap",alignItems:"flex-end"}}>
-              <span style={{fontSize:12,color:muted,fontWeight:600,alignSelf:"center"}}>Agregar a: <strong style={{color:text}}>{sedes.find(s=>s.id===sede)?.name}</strong></span>
-              <input value={newSalon} onChange={e=>setNewSalon(e.target.value)} placeholder="Ej: A301" style={{...inp(surface,border,text),width:150}}/>
-              <button onClick={saveSalon} style={{...btn("#b45309","#fff"),fontWeight:600}}>+ Agregar</button>
+            <div style={{display:"flex",gap:8,marginBottom:16,alignItems:"center",flexWrap:"wrap"}}>
+              <input value={newSalon} onChange={e=>setNewSalon(e.target.value)}
+                onKeyDown={e=>e.key==="Enter"&&saveSalon(salonSede)}
+                placeholder="Ej: A301" style={{...inp(surface,border,text),width:160}}/>
+              <button onClick={()=>saveSalon(salonSede)} style={{...btn("#b45309","#fff"),fontWeight:600}}>+ Agregar</button>
             </div>
           )}
-          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(210px,1fr))",gap:12}}>
-            {sedes.map(s=>(
-              <div key={s.id} style={{background:surface,border:`2px solid ${s.color}44`,borderRadius:10,padding:14}}>
-                <div style={{fontWeight:700,color:s.color,fontSize:13,marginBottom:10}}>{s.name}</div>
-                {(salones[s.id]||[]).map(sal=>(
-                  <div key={sal} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"5px 0",borderBottom:`1px solid ${border}`}}>
-                    <span style={{fontSize:13,color:text}}>{sal}</span>
-                    {canEdit&&<button onClick={()=>onDelSalon(s.id,sal)} style={{background:"transparent",border:"none",color:"#dc2626",cursor:"pointer",fontSize:18}}>×</button>}
+
+          {/* Lista de salones de la sede seleccionada */}
+          <div style={{background:surface,border:`2px solid ${sedes.find(s=>s.id===salonSede)?.color||border}44`,borderRadius:10,padding:14,maxWidth:400}}>
+            <div style={{fontWeight:700,color:sedes.find(s=>s.id===salonSede)?.color||text,fontSize:13,marginBottom:10}}>
+              {sedes.find(s=>s.id===salonSede)?.name} — {(salones[salonSede]||[]).length} salones
+            </div>
+            {(salones[salonSede]||[]).length===0&&(
+              <div style={{color:muted,fontSize:13}}>Sin salones. Agrega uno arriba.</div>
+            )}
+            {(salones[salonSede]||[]).map(sal=>(
+              <div key={sal} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"6px 0",borderBottom:`1px solid ${border}`}}>
+                {editSalon===sal?(
+                  <div style={{display:"flex",gap:6,flex:1}}>
+                    <input value={editSalonVal} onChange={e=>setEditSalonVal(e.target.value)}
+                      onKeyDown={e=>{if(e.key==="Enter"){onEditSalon(salonSede,sal,editSalonVal);setEditSalon(null);}if(e.key==="Escape")setEditSalon(null);}}
+                      style={{...inp(surface,border,text),width:"100%"}} autoFocus/>
+                    <button onClick={()=>{onEditSalon(salonSede,sal,editSalonVal);setEditSalon(null);}} style={btn("#0F6E56","#fff")}>✓</button>
+                    <button onClick={()=>setEditSalon(null)} style={btn("transparent",muted,border)}>✕</button>
                   </div>
-                ))}
-                {!(salones[s.id]||[]).length&&<div style={{color:muted,fontSize:12}}>Sin salones.</div>}
+                ):(
+                  <>
+                    <span style={{fontSize:13,color:text,fontWeight:500}}>{sal}</span>
+                    {canEdit&&(
+                      <div style={{display:"flex",gap:4}}>
+                        <button onClick={()=>{setEditSalon(sal);setEditSalonVal(sal);}} style={{...btn("#f1f5f9","#334155"),fontSize:12,padding:"4px 10px"}}>Editar</button>
+                        <button onClick={()=>onDelSalon(salonSede,sal)} style={{background:"transparent",border:"none",color:"#dc2626",cursor:"pointer",fontSize:18,lineHeight:1}}>×</button>
+                      </div>
+                    )}
+                  </>
+                )}
               </div>
             ))}
           </div>
@@ -696,14 +732,22 @@ function App(){
     if(sede===editSedeId)setSede(sedes.filter(s=>s.id!==editSedeId)[0]?.id||"");
     setShowSede(false);showToast("Sede eliminada.","danger");
   };
-  const saveSalon=()=>{
+  const saveSalon=(sid)=>{
     const s=newSalon.trim();if(!s){showToast("Ingresa un nombre.","danger");return;}
-    if((salones[sede]||[]).includes(s)){showToast("Ya existe.","danger");return;}
-    setSalones(p=>({...p,[sede]:[...(p[sede]||[]),s]}));setNewSalon("");showToast(`Salón ${s} agregado.`);
+    const sedeId=sid||sede;
+    if((salones[sedeId]||[]).includes(s)){showToast("Ya existe.","danger");return;}
+    setSalones(p=>({...p,[sedeId]:[...(p[sedeId]||[]),s]}));setNewSalon("");showToast(`Salón ${s} agregado.`);
   };
   const delSalon=(sid,sal)=>{
     if(classes.some(c=>c.sede===sid&&c.salon===sal)){showToast("Hay clases asignadas.","danger");return;}
     setSalones(p=>({...p,[sid]:(p[sid]||[]).filter(s=>s!==sal)}));showToast(`${sal} eliminado.`,"danger");
+  };
+  const editSalonFn=(sid,oldName,newName)=>{
+    const n=newName.trim();if(!n||n===oldName)return;
+    if((salones[sid]||[]).includes(n)){showToast("Ya existe ese nombre.","danger");return;}
+    setSalones(p=>({...p,[sid]:(p[sid]||[]).map(s=>s===oldName?n:s)}));
+    setClasses(cs=>cs.map(c=>c.sede===sid&&c.salon===oldName?{...c,salon:n}:c));
+    showToast(`Salón renombrado a ${n}.`);
   };
 
   const dropCls=dragId&&dropTarget?classes.find(c=>c.id===dragId):null;
@@ -822,7 +866,7 @@ function App(){
             border={border} text={text} muted={muted} surface={surface} canEdit={canEdit}
             onNewDoc={openNewDoc} onEditDoc={openEditDoc}
             onNewSede={openNewSede} onEditSede={openEditSede}
-            onDelSalon={delSalon} newSalon={newSalon} setNewSalon={setNewSalon} saveSalon={saveSalon}
+            onDelSalon={delSalon} onEditSalon={editSalonFn} newSalon={newSalon} setNewSalon={setNewSalon} saveSalon={saveSalon}
             gTab={gTab} setGTab={setGTab}/>
         )}
         {tab==="stats"&&(
