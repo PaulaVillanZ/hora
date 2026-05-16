@@ -129,9 +129,12 @@ const INIT_CLASSES=[
 
 function timeToMin(t){const[h,m]=t.split(":").map(Number);return h*60+m;}
 function minToTime(m){return`${String(Math.floor(m/60)).padStart(2,"0")}:${String(m%60).padStart(2,"0")}`;}
-function jornadaOf(h){const m=timeToMin(h);if(m>=18*60)return JORNADAS[2];if(m>=12*60)return JORNADAS[1];return JORNADAS[0];}
-function jornadaColor(h){return jornadaOf(h)?.color||"#64748b";}
-function jornadaBg(h){return jornadaOf(h)?.bg||"transparent";}
+function jornadaOf(h,dia){
+  if(dia==="Sábado"||dia==="Domingo")return JORNADAS[2];
+  const m=timeToMin(h);if(m>=18*60)return JORNADAS[2];if(m>=12*60)return JORNADAS[1];return JORNADAS[0];
+}
+function jornadaColor(h,dia){return jornadaOf(h,dia)?.color||"#64748b";}
+function jornadaBg(h,dia){return jornadaOf(h,dia)?.bg||"transparent";}
 function getDocColor(id,docs){const i=docs.findIndex(d=>d.id===id);return DOC_COLORS[i%DOC_COLORS.length]||"#888";}
 function docHours(id,cls){return cls.filter(c=>c.docente===id).reduce((a,c)=>a+(timeToMin(c.horaFin)-timeToMin(c.horaInicio))/60,0);}
 
@@ -194,7 +197,7 @@ function CalGrid({classes,dias,hours,border,headerBg,text,muted,onEdit,canEdit,c
               {dias.map(d=>{
                 const starting=classes.filter(c=>c.dia===d&&timeToMin(c.horaInicio)===timeToMin(h));
                 const isDT=dropTarget&&dropTarget.dia===d&&dropTarget.hora===h;
-                const cellBg=isDT?(dropValid?.ok?"rgba(22,163,74,.2)":"rgba(220,38,38,.2)"):jornadaBg(h);
+                const cellBg=isDT?(dropValid?.ok?"rgba(22,163,74,.2)":"rgba(220,38,38,.2)"):jornadaBg(h,d);
                 const cellBrd=isDT?(dropValid?.ok?"2px dashed #16a34a":"2px dashed #dc2626"):`1px solid ${border}`;
                 return(
                   <td key={d} style={{border:cellBrd,background:cellBg,verticalAlign:"top",padding:2,position:"relative"}}
@@ -274,7 +277,7 @@ function ClaseModal({initialForm,onSave,onDelete,onClose,editId,classes,docentes
     const hi=ref?.horaInicio||"08:00";
     const dur=mat?(mat.horas*60):120;
     const hf=minToTime(Math.min(timeToMin(hi)+dur,timeToMin("22:00")));
-    const jornada=jornadaOf(hi)?.id||"manana";
+    const jornada=jornadaOf(hi,f.dia)?.id||"manana";
     const newSede=ref?.sede||form.sede;
     setForm(f=>({...f,materia:nombre,semestre:mat?.semestre||f.semestre,jornada,horaInicio:hi,horaFin:hf,docente:ref?.docente||f.docente,sede:newSede,salon:ref?.salon||(salones[newSede]||[])[0]||f.salon,grupo:ref?.grupo||"A",dia:ref?.dia||"Lunes"}));
     setVal(null);
@@ -287,7 +290,7 @@ function ClaseModal({initialForm,onSave,onDelete,onClose,editId,classes,docentes
       const mat=materias.find(m=>m.nombre===nf.materia);
       const dur=mat?mat.horas*60:(timeToMin(form.horaFin)-timeToMin(form.horaInicio));
       nf.horaFin=minToTime(Math.min(timeToMin(v)+dur,timeToMin("22:00")));
-      nf.jornada=jornadaOf(v)?.id||"manana";
+      nf.jornada=jornadaOf(v,nf.dia)?.id||"manana";
     }
     setForm(nf);
     setVal(validateConflicts(nf,classes,editId,docentes));
@@ -678,15 +681,18 @@ function App(){
     if(filterDocente&&c.docente!==filterDocente)return false;
     if(filterSemestre&&c.semestre!==filterSemestre)return false;
     if(filterSalon&&c.salon!==filterSalon)return false;
-    if(tab==="grilla"&&!jornadasOn[c.jornada])return false;
+    if(tab==="grilla"&&!jornadasOn[c.jornada]){
+      if((c.dia==="Sábado"||c.dia==="Domingo")&&jornadasOn["noche"])return true;
+      return false;
+    }
     return true;
   });
   const ann=cls=>({...cls,_doc:docentes.find(d=>d.id===cls.docente)?.name.split(" ").slice(-1)[0]||""});
-  const jCol=cls=>jornadaOf(cls.horaInicio)?.color||"#888";
+  const jCol=cls=>jornadaOf(cls.horaInicio,cls.dia)?.color||"#888";
 
   const defaultForm=()=>{
     const m0=materias[0];
-    return{materia:m0?.nombre||"",grupo:"A",docente:docentes[0]?.id||"",sede,salon:(salones[sede]||[])[0]||"",dia:"Lunes",horaInicio:"08:00",horaFin:m0?minToTime(timeToMin("08:00")+m0.horas*60):"10:00",semestre:m0?.semestre||"1",jornada:"manana"};
+    return{materia:m0?.nombre||"",grupo:"A",docente:docentes[0]?.id||"",sede,salon:(salones[sede]||[])[0]||"",dia:"Lunes",horaInicio:"08:00",horaFin:m0?minToTime(timeToMin("08:00")+m0.horas*60):"10:00",semestre:m0?.semestre||"1",jornada:jornadaOf("08:00","Lunes")?.id||"manana"};
   };
 
   const handleRoleConfirm=()=>{
