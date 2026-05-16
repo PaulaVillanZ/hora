@@ -145,11 +145,11 @@ function validateConflicts(cls,all,editId,docentes){
     if(si>=cf||sf<=ci)continue;
     if(c.docente===cls.docente){
       const dn=docentes.find(d=>d.id===cls.docente)?.name||cls.docente;
-      if(c.sede!==cls.sede)return{ok:false,msg:`Cruce entre sedes: ${dn} ya tiene clase en otra sede.`};
-      return{ok:false,msg:`Conflicto de docente: ${dn} ya tiene clase a esta hora.`};
+      if(c.sede!==cls.sede)return{ok:false,msg:`Cruce entre sedes: ${dn} ya tiene "${c.materia}" en otra sede el ${c.dia} de ${c.horaInicio} a ${c.horaFin}.`};
+      return{ok:false,msg:`Conflicto de docente: ${dn} ya tiene "${c.materia}" el ${c.dia} de ${c.horaInicio} a ${c.horaFin}.`};
     }
-    if(c.salon===cls.salon&&c.sede===cls.sede)return{ok:false,msg:`Salón ocupado: ${cls.salon}.`};
-    if(c.grupo===cls.grupo&&c.semestre===cls.semestre&&c.sede===cls.sede)return{ok:false,msg:`Conflicto de grupo ${cls.grupo} en semestre ${cls.semestre}.`};
+    if(c.salon===cls.salon&&c.sede===cls.sede)return{ok:false,msg:`Salón ocupado: ${cls.salon} tiene "${c.materia}" (Grupo ${c.grupo}) el ${c.dia} de ${c.horaInicio} a ${c.horaFin}.`};
+    if(c.grupo===cls.grupo&&c.semestre===cls.semestre&&c.sede===cls.sede)return{ok:false,msg:`Conflicto de grupo ${cls.grupo} (Sem. ${cls.semestre}): ya tiene "${c.materia}" el ${c.dia} de ${c.horaInicio} a ${c.horaFin}.`};
   }
   return{ok:true};
 }
@@ -849,7 +849,10 @@ function App(){
       )}
 
       <div style={{padding:16}}>
-        {(tab==="grilla"||tab==="semestre"||tab==="docente"||tab==="salon")&&(
+        {!sede&&(tab==="grilla"||tab==="semestre"||tab==="docente"||tab==="salon")&&(
+          <div style={{textAlign:"center",padding:60,color:"#94a3b8",fontSize:15}}>Selecciona una sede para ver los horarios.</div>
+        )}
+        {sede&&(tab==="grilla"||tab==="semestre"||tab==="docente"||tab==="salon")&&(
           <CalGrid classes={filtered.map(ann)} dias={DAYS} hours={tab==="grilla"?activeHours:ALL_HOURS}
             border={border} headerBg={headerBg} text={text} muted={muted}
             onEdit={openEditClase} canEdit={canEdit}
