@@ -319,9 +319,9 @@ function ClaseModal({initialForm,onSave,onDelete,onClose,editId,classes,docentes
           <div><Lbl t="Semestre" muted={muted}/><select value={form.semestre||"1"} onChange={e=>upd("semestre",e.target.value)} style={inp(surface,border,text)}>{SEMESTRES.map(s=><option key={s} value={s}>Semestre {s}</option>)}</select></div>
           <div><Lbl t="Jornada" muted={muted}/><select value={form.jornada||"manana"} onChange={e=>upd("jornada",e.target.value)} style={inp(surface,border,text)}>{JORNADAS.map(j=><option key={j.id} value={j.id}>{j.label}</option>)}</select></div>
           <div><Lbl t="Grupo" muted={muted}/><select value={form.grupo||"A"} onChange={e=>upd("grupo",e.target.value)} style={inp(surface,border,text)}>{GRUPOS.map(g=><option key={g} value={g}>Grupo {g}</option>)}</select></div>
-          <div><Lbl t="Docente" muted={muted}/><select value={form.docente||""} onChange={e=>upd("docente",e.target.value)} style={inp(surface,border,text)}>{docentes.map(d=><option key={d.id} value={d.id}>{d.name}</option>)}</select></div>
-          <div><Lbl t="Sede" muted={muted}/><select value={form.sede||""} onChange={e=>upd("sede",e.target.value)} style={inp(surface,border,text)}>{sedes.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}</select></div>
-          <div><Lbl t="Salón" muted={muted}/><select value={form.salon||""} onChange={e=>upd("salon",e.target.value)} style={inp(surface,border,text)}>{(salones[form.sede]||[]).map(s=><option key={s}>{s}</option>)}</select></div>
+          <div><Lbl t="Docente" muted={muted}/><select value={form.docente||""} onChange={e=>upd("docente",e.target.value)} style={inp(surface,border,text)}>{[...docentes].sort((a,b)=>a.name.localeCompare(b.name)).map(d=><option key={d.id} value={d.id}>{d.name}</option>)}</select></div>
+          <div><Lbl t="Sede" muted={muted}/><select value={form.sede||""} onChange={e=>upd("sede",e.target.value)} style={inp(surface,border,text)}>{[...sedes].sort((a,b)=>a.name.localeCompare(b.name)).map(s=><option key={s.id} value={s.id}>{s.name}</option>)}</select></div>
+          <div><Lbl t="Salón" muted={muted}/><select value={form.salon||""} onChange={e=>upd("salon",e.target.value)} style={inp(surface,border,text)}>{[...(salones[form.sede]||[])].sort((a,b)=>a.localeCompare(b)).map(s=><option key={s}>{s}</option>)}</select></div>
           <div><Lbl t="Día" muted={muted}/><select value={form.dia||"Lunes"} onChange={e=>upd("dia",e.target.value)} style={inp(surface,border,text)}>{DAYS.map(d=><option key={d}>{d}</option>)}</select></div>
           <div><Lbl t="Hora inicio" muted={muted}/><select value={form.horaInicio||"08:00"} onChange={e=>upd("horaInicio",e.target.value)} style={inp(surface,border,text)}>{ALL_HOURS.map(h=><option key={h}>{h}</option>)}</select></div>
           <div><Lbl t="Hora fin" muted={muted}/><select value={form.horaFin||"10:00"} onChange={e=>upd("horaFin",e.target.value)} style={inp(surface,border,text)}>{ALL_HOURS.filter(h=>h>(form.horaInicio||"08:00")).map(h=><option key={h}>{h}</option>)}</select></div>
@@ -552,7 +552,7 @@ function FilterBar({tab,sede,setSede,sedes,filterDocente,setFilterDocente,filter
   const sedeColor=sedes.find(s=>s.id===sede)?.color||"#185FA5";
   const SedeSelect=()=>(
     <select value={sede} onChange={e=>setSede(e.target.value)} style={{borderRadius:6,border:`1px solid ${border}`,padding:"5px 10px",background:surface,color:text,fontSize:13,fontWeight:600}}>
-      {sedes.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}
+      {[...sedes].sort((a,b)=>a.name.localeCompare(b.name)).map(s=><option key={s.id} value={s.id}>{s.name}</option>)}
     </select>
   );
   if(tab==="gestion"||tab==="stats") return null;
@@ -576,11 +576,11 @@ function FilterBar({tab,sede,setSede,sedes,filterDocente,setFilterDocente,filter
           </select>
           <select value={filterDocente} onChange={e=>setFilterDocente(e.target.value)} style={{borderRadius:6,border:`1px solid ${border}`,padding:"5px 10px",background:surface,color:text,fontSize:13}}>
             <option value="">Todos los docentes</option>
-            {docentes.map(d=><option key={d.id} value={d.id}>{d.name}</option>)}
+            {[...docentes].sort((a,b)=>a.name.localeCompare(b.name)).map(d=><option key={d.id} value={d.id}>{d.name}</option>)}
           </select>
           <select value={filterSalon} onChange={e=>setFilterSalon(e.target.value)} style={{borderRadius:6,border:`1px solid ${border}`,padding:"5px 10px",background:surface,color:text,fontSize:13}}>
             <option value="">Todos los salones</option>
-            {(salones[sede]||[]).map(s=><option key={s} value={s}>{s}</option>)}
+            {[...(salones[sede]||[])].sort((a,b)=>a.localeCompare(b)).map(s=><option key={s} value={s}>{s}</option>)}
           </select>
         </>
       )}
@@ -593,13 +593,13 @@ function FilterBar({tab,sede,setSede,sedes,filterDocente,setFilterDocente,filter
       {tab==="docente"&&(
         <>
           <div style={{width:1,height:24,background:border,margin:"0 2px"}}/>
-          <PillButtons options={docentes.map(d=>({label:d.name.split(" ").slice(-2).join(" "),value:d.id}))} value={filterDocente} onChange={setFilterDocente} color={sedeColor} muted={muted}/>
+          <PillButtons options={[...docentes].sort((a,b)=>a.name.localeCompare(b.name)).map(d=>({label:d.name.split(" ").slice(-2).join(" "),value:d.id}))} value={filterDocente} onChange={setFilterDocente} color={sedeColor} muted={muted}/>
         </>
       )}
       {tab==="salon"&&(
         <>
           <div style={{width:1,height:24,background:border,margin:"0 2px"}}/>
-          <PillButtons options={(salones[sede]||[]).map(s=>({label:s,value:s}))} value={filterSalon} onChange={setFilterSalon} color={sedeColor} muted={muted}/>
+          <PillButtons options={[...(salones[sede]||[])].sort((a,b)=>a.localeCompare(b)).map(s=>({label:s,value:s}))} value={filterSalon} onChange={setFilterSalon} color={sedeColor} muted={muted}/>
         </>
       )}
       <div style={{flex:1}}/>
