@@ -277,7 +277,7 @@ function ClaseModal({initialForm,onSave,onDelete,onClose,editId,classes,docentes
     const hi=ref?.horaInicio||"08:00";
     const dur=mat?(mat.horas*60):120;
     const hf=minToTime(Math.min(timeToMin(hi)+dur,timeToMin("22:00")));
-    const jornada=jornadaOf(hi,f.dia)?.id||"manana";
+    const jornada=jornadaOf(hi,form.dia)?.id||"manana";
     const newSede=ref?.sede||form.sede;
     setForm(f=>({...f,materia:nombre,semestre:mat?.semestre||f.semestre,jornada,horaInicio:hi,horaFin:hf,docente:ref?.docente||f.docente,sede:newSede,salon:ref?.salon||(salones[newSede]||[])[0]||f.salon,grupo:ref?.grupo||"A",dia:ref?.dia||"Lunes"}));
     setVal(null);
