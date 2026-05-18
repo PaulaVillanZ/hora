@@ -92,28 +92,88 @@ function exportRaw(rows,sheetName,fileName){
   if(dias.length===0){alert("No hay clases para exportar.");return;}
   const wb=XLSX.utils.book_new();
   const ws={};
+  const merges=[];
+
+  // Header row
   const hFill={patternType:"solid",fgColor:{rgb:"FF1E3A5F"}};
   const hFont={bold:true,color:{rgb:"FFFFFFFF"},sz:11};
-  ws["A1"]={v:"Hora",t:"s",s:{fill:hFill,font:hFont,alignment:{horizontal:"center"}}};
-  dias.forEach((d,i)=>{const col=XLSX.utils.encode_col(i+1);ws[`${col}1`]={v:d,t:"s",s:{fill:hFill,font:hFont,alignment:{horizontal:"center"}}};});
+  ws["A1"]={v:"Hora",t:"s",s:{fill:hFill,font:hFont,alignment:{horizontal:"center",vertical:"center"}}};
+  dias.forEach((d,i)=>{
+    const col=XLSX.utils.encode_col(i+1);
+    ws[`${col}1`]={v:d,t:"s",s:{fill:hFill,font:hFont,alignment:{horizontal:"center",vertical:"center"}}};
+  });
+
   const jBg={"manana":"FFDBEAFE","tarde":"FFFEF3C7","noche":"FFEDE9FE"};
   const jFg={"manana":"FF0369A1","tarde":"FFB45309","noche":"FF7C3AED"};
+  const sedeColors=["FF185FA5","FF0F6E56","FF7F77DD","FFD85A30","FF9333EA","FFE11D48"];
   const brd={top:{style:"thin",color:{rgb:"FFCBD5E1"}},bottom:{style:"thin",color:{rgb:"FFCBD5E1"}},left:{style:"thin",color:{rgb:"FFCBD5E1"}},right:{style:"thin",color:{rgb:"FFCBD5E1"}}};
+
+  // Track which cells are already filled by a merged block
+  const occupied={};
+
   ALL_HOURS.forEach((h,ri)=>{
     const rowNum=ri+2;
     const jId=timeToMin(h)>=18*60?"noche":timeToMin(h)>=12*60?"tarde":"manana";
-    ws[`A${rowNum}`]={v:h,t:"s",s:{fill:{patternType:"solid",fgColor:{rgb:jBg[jId]}},font:{bold:true,color:{rgb:jFg[jId]},sz:10},alignment:{horizontal:"center",vertical:"center"}}};
+
+    // Hour label cell
+    ws[`A${rowNum}`]={v:h,t:"s",s:{
+      fill:{patternType:"solid",fgColor:{rgb:jBg[jId]}},
+      font:{bold:true,color:{rgb:jFg[jId]},sz:10},
+      alignment:{horizontal:"center",vertical:"center"},
+      border:brd
+    }};
+
     dias.forEach((d,ci)=>{
       const col=XLSX.utils.encode_col(ci+1);
+      const cellRef=`${col}${rowNum}`;
       const isWeekend=d==="Sábado"||d==="Domingo";
       const cellJid=isWeekend?"noche":jId;
-      const cls=rows.filter(r=>r.dia===d&&timeToMin(r.horaInicio)<=timeToMin(h)&&timeToMin(r.horaFin)>timeToMin(h));
-      const val=cls.map(c=>`${c.materia} | Gr.${c.grupo}\n${c.docente_name||c.docente} | ${c.salon}`).join("\n─────\n");
-      ws[`${col}${rowNum}`]={v:val,t:"s",s:{fill:{patternType:"solid",fgColor:{rgb:jBg[cellJid]}},font:{sz:9,color:{rgb:"FF1E293B"}},alignment:{horizontal:"left",vertical:"top",wrapText:true},border:brd}};
+      const cellBg=jBg[cellJid];
+
+      if(occupied[cellRef]){
+        // Cell covered by a merged block above — write empty with same bg
+        ws[cellRef]={v:"",t:"s",s:{fill:{patternType:"solid",fgColor:{rgb:cellBg}},border:brd}};
+        return;
+      }
+
+      // Find class starting at this exact hour
+      const cls=rows.find(r=>r.dia===d&&timeToMin(r.horaInicio)===timeToMin(h));
+      if(cls){
+        const startIdx=ALL_HOURS.indexOf(h);
+        const endIdx=ALL_HOURS.findIndex(hh=>timeToMin(hh)>=timeToMin(cls.horaFin));
+        const spanRows=endIdx===-1?ALL_HOURS.length-startIdx:endIdx-startIdx;
+
+        // Color block like the app — use sede color as block bg
+        const colorIdx=["sede1778887386113","sede1778887985762","sede1778887992181","sede1778887998024"].indexOf(cls.sede);
+        const blockColor=colorIdx>=0?sedeColors[colorIdx]:"FF185FA5";
+
+        const label=`${cls.materia}\n${cls.docente_name||cls.docente}\n${cls.horaInicio}–${cls.horaFin} · Gr.${cls.grupo}`;
+        ws[cellRef]={v:label,t:"s",s:{
+          fill:{patternType:"solid",fgColor:{rgb:blockColor}},
+          font:{bold:true,color:{rgb:"FFFFFFFF"},sz:9},
+          alignment:{horizontal:"left",vertical:"top",wrapText:true},
+          border:brd
+        }};
+
+        // Merge vertically if class spans multiple hours
+        if(spanRows>1){
+          merges.push({s:{r:rowNum-1,c:ci+1},e:{r:rowNum-1+spanRows-1,c:ci+1}});
+          for(let k=1;k<spanRows;k++){
+            const futureRow=rowNum+k;
+            const futureCol=XLSX.utils.encode_col(ci+1);
+            occupied[`${futureCol}${futureRow}`]=true;
+          }
+        }
+      } else {
+        // Empty cell
+        ws[cellRef]={v:"",t:"s",s:{fill:{patternType:"solid",fgColor:{rgb:cellBg}},border:brd}};
+      }
     });
   });
-  ws["!cols"]=[{wch:7},...dias.map(()=>({wch:32}))];
-  ws["!rows"]=[{hpt:18},...ALL_HOURS.map(()=>({hpt:48}))];
+
+  ws["!merges"]=merges;
+  ws["!cols"]=[{wch:7},...dias.map(()=>({wch:28}))];
+  ws["!rows"]=[{hpt:20},...ALL_HOURS.map(()=>({hpt:40}))];
   ws["!ref"]=XLSX.utils.encode_range({s:{r:0,c:0},e:{r:ALL_HOURS.length,c:dias.length}});
   XLSX.utils.book_append_sheet(wb,ws,sheetName.slice(0,31));
   XLSX.writeFile(wb,fileName);
