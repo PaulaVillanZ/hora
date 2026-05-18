@@ -7,7 +7,7 @@
 <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>*{box-sizing:border-box;margin:0;padding:0;}body{font-family:system-ui,sans-serif;}</style>
 </head>
 <body>
@@ -140,45 +140,17 @@ function getDocColor(id,docs){const i=docs.findIndex(d=>d.id===id);return DOC_CO
 function docHours(id,cls){return cls.filter(c=>c.docente===id).reduce((a,c)=>a+(timeToMin(c.horaFin)-timeToMin(c.horaInicio))/60,0);}
 
 function exportRaw(rows, sheetName, fileName){
-  const dias=DAYS.filter(d=>rows.some(r=>r.dia===d));
-  if(dias.length===0){alert("No hay clases para exportar.");return;}
-  const hours=ALL_HOURS;
+  const DIAS=["Lunes","Martes","Miércoles","Jueves","Viernes","Sábado","Domingo"];
+  const data=rows.map(r=>({
+    Día:r.dia, Inicio:r.horaInicio, Fin:r.horaFin,
+    Materia:r.materia, Semestre:`Sem. ${r.semestre}`,
+    Grupo:`Grupo ${r.grupo}`, Docente:r.docente_name||r.docente,
+    Salón:r.salon, Jornada:r.jornada, Sede:r.sede_name||r.sede
+  }));
+  data.sort((a,b)=>DIAS.indexOf(a.Día)-DIAS.indexOf(b.Día)||a.Inicio.localeCompare(b.Inicio));
+  const ws=XLSX.utils.json_to_sheet(data);
+  ws["!cols"]=[8,8,8,25,10,10,25,12,10,15].map(wch=>({wch}));
   const wb=XLSX.utils.book_new();
-  const ws={};
-  const headerFill={patternType:"solid",fgColor:{rgb:"FF1E3A5F"}};
-  const headerFont={bold:true,color:{rgb:"FFFFFFFF"},sz:11};
-  ws["A1"]={v:"Hora",t:"s",s:{fill:headerFill,font:headerFont,alignment:{horizontal:"center"}}};
-  dias.forEach((d,i)=>{
-    const col=XLSX.utils.encode_col(i+1);
-    ws[`${col}1`]={v:d,t:"s",s:{fill:headerFill,font:headerFont,alignment:{horizontal:"center"}}};
-  });
-  const jBg={"manana":"FFDBEAFE","tarde":"FFFEF3C7","noche":"FFEDE9FE"};
-  const jFg={"manana":"FF0369A1","tarde":"FFB45309","noche":"FF7C3AED"};
-  hours.forEach((h,ri)=>{
-    const rowNum=ri+2;
-    const jId=timeToMin(h)>=18*60?"noche":timeToMin(h)>=12*60?"tarde":"manana";
-    ws[`A${rowNum}`]={v:h,t:"s",s:{
-      fill:{patternType:"solid",fgColor:{rgb:jBg[jId]}},
-      font:{bold:true,color:{rgb:jFg[jId]},sz:10},
-      alignment:{horizontal:"center",vertical:"center"}
-    }};
-    dias.forEach((d,ci)=>{
-      const col=XLSX.utils.encode_col(ci+1);
-      const isWeekend=d==="Sábado"||d==="Domingo";
-      const cellJid=isWeekend?"noche":jId;
-      const cls=rows.filter(r=>r.dia===d&&timeToMin(r.horaInicio)<=timeToMin(h)&&timeToMin(r.horaFin)>timeToMin(h));
-      const val=cls.map(c=>`${c.materia} | Gr.${c.grupo}\n${c.docente_name||c.docente} | ${c.salon}`).join("\n─────\n");
-      ws[`${col}${rowNum}`]={v:val,t:"s",s:{
-        fill:{patternType:"solid",fgColor:{rgb:jBg[cellJid]}},
-        font:{sz:9,color:{rgb:"FF1E293B"}},
-        alignment:{horizontal:"left",vertical:"top",wrapText:true},
-        border:{top:{style:"thin",color:{rgb:"FFCBD5E1"}},bottom:{style:"thin",color:{rgb:"FFCBD5E1"}},left:{style:"thin",color:{rgb:"FFCBD5E1"}},right:{style:"thin",color:{rgb:"FFCBD5E1"}}}
-      }};
-    });
-  });
-  ws["!cols"]=[{wch:7},...dias.map(()=>({wch:32}))];
-  ws["!rows"]=[{hpt:18},...hours.map(()=>({hpt:48}))];
-  ws["!ref"]=XLSX.utils.encode_range({s:{r:0,c:0},e:{r:hours.length,c:dias.length}});
   XLSX.utils.book_append_sheet(wb,ws,sheetName.slice(0,31));
   XLSX.writeFile(wb,fileName);
 }
