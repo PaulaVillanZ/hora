@@ -348,9 +348,10 @@ function ClaseModal({initialForm,onSave,onDelete,onClose,editId,classes,docentes
   };
 
   const save=()=>{
-    const r=validateConflicts(form,classes,editId,docentes);
+    const fFixed={...form, jornada: jornadaOf(form.horaInicio, form.dia)?.id||"manana"};
+    const r=validateConflicts(fFixed,classes,editId,docentes);
     if(!r.ok){setVal(r);return;}
-    onSave(form);
+    onSave(fFixed);
   };
 
   return(
@@ -758,12 +759,16 @@ function App(){
 
   const filtered=classes.filter(c=>{
     if(c.sede!==sede)return false;
-    if(filterDocente&&c.docente!==filterDocente)return false;
+    if(filterDocente&&filterDocente!=="pendiente"&&c.docente!==filterDocente)return false;
+    if(filterDocente==="pendiente"&&c.docente!=="pendiente")return false;
     if(filterSemestre&&c.semestre!==filterSemestre)return false;
-    if(filterSalon&&c.salon!==filterSalon)return false;
-    if(tab==="grilla"&&!jornadasOn[c.jornada]){
-      if((c.dia==="Sábado"||c.dia==="Domingo")&&jornadasOn["noche"])return true;
-      return false;
+    if(filterSalon&&filterSalon!=="pendiente"&&c.salon!==filterSalon)return false;
+    if(filterSalon==="pendiente"&&c.salon!=="pendiente")return false;
+    if(tab==="grilla"){
+      // Calcular jornada real desde horaInicio (no confiar en el campo guardado)
+      const jornadaReal=jornadaOf(c.horaInicio,c.dia)?.id||"manana";
+      if(c.dia==="Sábado"||c.dia==="Domingo") return jornadasOn["noche"];
+      if(!jornadasOn[jornadaReal]) return false;
     }
     return true;
   });
@@ -772,7 +777,21 @@ function App(){
 
   const defaultForm=()=>{
     const m0=materias[0];
-    return{materia:m0?.nombre||"",grupo:"A",docente:docentes[0]?.id||"",sede,salon:(salones[sede]||[])[0]||"",dia:"Lunes",horaInicio:"08:00",horaFin:m0?minToTime(timeToMin("08:00")+m0.horas*60):"10:00",semestre:m0?.semestre||"1",jornada:jornadaOf("08:00","Lunes")?.id||"manana"};
+    const sedeId=sede||(sedes[0]?.id||"");
+    const salonDefault=(salones[sedeId]||[])[0]||"pendiente";
+    const hi="08:00";
+    return{
+      materia:m0?.nombre||"",
+      grupo:"A",
+      docente:"pendiente",
+      sede:sedeId,
+      salon:salonDefault,
+      dia:"Lunes",
+      horaInicio:hi,
+      horaFin:m0?minToTime(Math.min(timeToMin(hi)+m0.horas*60,timeToMin("22:00"))):"10:00",
+      semestre:m0?.semestre||"1",
+      jornada:jornadaOf(hi,"Lunes")?.id||"manana"
+    };
   };
 
   const handleRoleConfirm=()=>{
@@ -784,10 +803,12 @@ function App(){
   const openNewClase=()=>{if(!canEdit)return;setEditClaseId(null);setClaseForm(defaultForm());setShowClase(true);};
   const openEditClase=cls=>{if(!canEdit)return;setEditClaseId(cls.id);setClaseForm({materia:cls.materia,semestre:cls.semestre,jornada:cls.jornada,grupo:cls.grupo,docente:cls.docente,sede:cls.sede,salon:cls.salon,dia:cls.dia,horaInicio:cls.horaInicio,horaFin:cls.horaFin});setShowClase(true);};
   const saveClase=f=>{
-    const r=validateConflicts(f,classes,editClaseId,docentes);
+    // Siempre recalcular jornada desde horaInicio para que sea consistente
+    const fFixed={...f, jornada: jornadaOf(f.horaInicio, f.dia)?.id||"manana"};
+    const r=validateConflicts(fFixed,classes,editClaseId,docentes);
     if(!r.ok){showToast(r.msg,"danger");return;}
-    if(editClaseId){setClasses(cs=>cs.map(c=>c.id===editClaseId?{...f,id:editClaseId}:c));showToast("Clase actualizada.");}
-    else{setClasses(cs=>[...cs,{...f,id:"c"+Date.now()}]);showToast("Clase creada.");}
+    if(editClaseId){setClasses(cs=>cs.map(c=>c.id===editClaseId?{...fFixed,id:editClaseId}:c));showToast("Clase actualizada.");}
+    else{setClasses(cs=>[...cs,{...fFixed,id:"c"+Date.now()}]);showToast("Clase creada.");}
     setShowClase(false);
   };
   const delClase=()=>{setClasses(cs=>cs.filter(c=>c.id!==editClaseId));setShowClase(false);showToast("Clase eliminada.","danger");};
