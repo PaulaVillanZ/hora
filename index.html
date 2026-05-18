@@ -80,52 +80,11 @@ const JORNADAS=[
 ];
 const GRUPOS=["A","B","C"];
 
-const INIT_SEDES=[
-  {id:"norte",    name:"Sede Norte",    color:"#185FA5"},
-  {id:"sur",      name:"Sede Sur",      color:"#0F6E56"},
-  {id:"centro",   name:"Sede Centro",   color:"#7F77DD"},
-  {id:"occidente",name:"Sede Occidente",color:"#D85A30"},
-];
-const INIT_SALONES={
-  norte:["A101","A102","A201","Lab-N1","Audit-N"],
-  sur:["B101","B102","B201","Lab-S1","Audit-S"],
-  centro:["C101","C102","C201","Lab-C1","Audit-C"],
-  occidente:["D101","D102","D201","Lab-O1","Audit-O"],
-};
-const INIT_DOCENTES=[
-  {id:"d1",name:"Dr. García Pérez",   email:"garcia@uni.edu"},
-  {id:"d2",name:"Dra. Martínez López",email:"martinez@uni.edu"},
-  {id:"d3",name:"Dr. Rodríguez Silva",email:"rodriguez@uni.edu"},
-  {id:"d4",name:"Mg. Torres Vega",    email:"torres@uni.edu"},
-  {id:"d5",name:"Dra. Flores Mora",   email:"flores@uni.edu"},
-  {id:"d6",name:"Dr. Herrera Díaz",   email:"herrera@uni.edu"},
-];
-const INIT_MATERIAS=[
-  {id:"m1", nombre:"Cálculo I",           horas:4,semestre:"1"},
-  {id:"m2", nombre:"Cálculo II",          horas:4,semestre:"2"},
-  {id:"m3", nombre:"Álgebra Lineal",      horas:3,semestre:"1"},
-  {id:"m4", nombre:"Física I",            horas:4,semestre:"2"},
-  {id:"m5", nombre:"Programación I",      horas:4,semestre:"1"},
-  {id:"m6", nombre:"Estructuras de Datos",horas:3,semestre:"3"},
-  {id:"m7", nombre:"Bases de Datos",      horas:3,semestre:"4"},
-  {id:"m8", nombre:"Redes",               horas:3,semestre:"5"},
-  {id:"m9", nombre:"Anatomía",            horas:5,semestre:"3"},
-  {id:"m10",nombre:"Derecho Civil",       horas:3,semestre:"4"},
-  {id:"m11",nombre:"Microeconomía",       horas:3,semestre:"2"},
-  {id:"m12",nombre:"Estadística",         horas:3,semestre:"3"},
-  {id:"m13",nombre:"Ética Profesional",   horas:2,semestre:"6"},
-  {id:"m14",nombre:"Inglés Técnico",      horas:2,semestre:"5"},
-];
-const INIT_CLASSES=[
-  {id:"c1",materia:"Cálculo I",      grupo:"A",docente:"d1",sede:"norte",    salon:"A101",  dia:"Lunes",    horaInicio:"07:00",horaFin:"09:00",semestre:"1",jornada:"manana"},
-  {id:"c2",materia:"Cálculo I",      grupo:"B",docente:"d2",sede:"norte",    salon:"A102",  dia:"Lunes",    horaInicio:"19:00",horaFin:"21:00",semestre:"1",jornada:"noche"},
-  {id:"c3",materia:"Programación I", grupo:"A",docente:"d2",sede:"norte",    salon:"Lab-N1",dia:"Martes",   horaInicio:"09:00",horaFin:"11:00",semestre:"2",jornada:"manana"},
-  {id:"c4",materia:"Programación I", grupo:"B",docente:"d3",sede:"norte",    salon:"A201",  dia:"Martes",   horaInicio:"14:00",horaFin:"16:00",semestre:"2",jornada:"tarde"},
-  {id:"c5",materia:"Anatomía",       grupo:"A",docente:"d3",sede:"sur",      salon:"B101",  dia:"Lunes",    horaInicio:"08:00",horaFin:"10:00",semestre:"3",jornada:"manana"},
-  {id:"c6",materia:"Derecho Civil",  grupo:"A",docente:"d4",sede:"centro",   salon:"C101",  dia:"Miércoles",horaInicio:"14:00",horaFin:"16:00",semestre:"4",jornada:"tarde"},
-  {id:"c7",materia:"Microeconomía",  grupo:"C",docente:"d5",sede:"occidente",salon:"D101",  dia:"Jueves",   horaInicio:"18:00",horaFin:"20:00",semestre:"5",jornada:"noche"},
-  {id:"c8",materia:"Estadística",    grupo:"B",docente:"d6",sede:"norte",    salon:"A201",  dia:"Viernes",  horaInicio:"13:00",horaFin:"15:00",semestre:"6",jornada:"tarde"},
-];
+const INIT_SEDES=[];
+const INIT_SALONES={};
+const INIT_DOCENTES=[];
+const INIT_MATERIAS=[];
+const INIT_CLASSES=[];
 
 function timeToMin(t){const[h,m]=t.split(":").map(Number);return h*60+m;}
 function minToTime(m){return`${String(Math.floor(m/60)).padStart(2,"0")}:${String(m%60).padStart(2,"0")}`;}
