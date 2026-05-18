@@ -7,6 +7,7 @@
 <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>*{box-sizing:border-box;margin:0;padding:0;}body{font-family:system-ui,sans-serif;}</style>
 </head>
 <body>
@@ -137,6 +138,22 @@ function jornadaColor(h,dia){return jornadaOf(h,dia)?.color||"#64748b";}
 function jornadaBg(h,dia){return jornadaOf(h,dia)?.bg||"transparent";}
 function getDocColor(id,docs){const i=docs.findIndex(d=>d.id===id);return DOC_COLORS[i%DOC_COLORS.length]||"#888";}
 function docHours(id,cls){return cls.filter(c=>c.docente===id).reduce((a,c)=>a+(timeToMin(c.horaFin)-timeToMin(c.horaInicio))/60,0);}
+
+function exportRaw(rows, sheetName, fileName){
+  const DIAS=["Lunes","Martes","Miércoles","Jueves","Viernes","Sábado","Domingo"];
+  const data=rows.map(r=>({
+    Día:r.dia, Inicio:r.horaInicio, Fin:r.horaFin,
+    Materia:r.materia, Semestre:`Sem. ${r.semestre}`,
+    Grupo:`Grupo ${r.grupo}`, Docente:r.docente_name||r.docente,
+    Salón:r.salon, Jornada:r.jornada, Sede:r.sede_name||r.sede
+  }));
+  data.sort((a,b)=>DIAS.indexOf(a.Día)-DIAS.indexOf(b.Día)||a.Inicio.localeCompare(b.Inicio));
+  const ws=XLSX.utils.json_to_sheet(data);
+  ws["!cols"]=[8,8,8,25,10,10,25,12,10,15].map(wch=>({wch}));
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,sheetName.slice(0,31));
+  XLSX.writeFile(wb,fileName);
+}
 
 function validateConflicts(cls,all,editId,docentes){
   const others=all.filter(c=>c.id!==editId);
@@ -870,18 +887,40 @@ function App(){
         {!sede&&(tab==="grilla"||tab==="semestre"||tab==="docente"||tab==="salon")&&(
           <div style={{textAlign:"center",padding:60,color:"#94a3b8",fontSize:15}}>Selecciona una sede para ver los horarios.</div>
         )}
-        {sede&&(tab==="grilla"||tab==="semestre"||tab==="docente"||tab==="salon")&&(
-          <CalGrid classes={filtered.map(ann)} dias={DAYS} hours={tab==="grilla"?activeHours:ALL_HOURS}
-            border={border} headerBg={headerBg} text={text} muted={muted}
-            onEdit={openEditClase} canEdit={canEdit}
-            colorFn={tab==="docente"?cls=>getDocColor(cls.docente,docentes):jCol}
-            dragId={tab==="grilla"?dragId:undefined}
-            setDragId={tab==="grilla"?setDragId:undefined}
-            dropTarget={tab==="grilla"?dropTarget:undefined}
-            setDropTarget={tab==="grilla"?setDropTarget:undefined}
-            onDrop={tab==="grilla"?handleDrop:undefined}
-            dropValid={tab==="grilla"?dropValid:undefined}/>
-        )}
+        {sede&&(tab==="grilla"||tab==="semestre"||tab==="docente"||tab==="salon")&&(()=>{
+          const sedeName=sedes.find(s=>s.id===sede)?.name||sede;
+          const enriched=filtered.map(c=>({...c,
+            docente_name:docentes.find(d=>d.id===c.docente)?.name||(c.docente==="pendiente"?"Pendiente":c.docente),
+            sede_name:sedeName
+          }));
+          const xlsLabel=
+            tab==="docente"&&filterDocente==="pendiente"?"Docente_Pendiente":
+            tab==="docente"&&filterDocente?docentes.find(d=>d.id===filterDocente)?.name?.replace(/\s+/g,"_")||filterDocente:
+            tab==="salon"&&filterSalon==="pendiente"?"Salon_Pendiente":
+            tab==="salon"&&filterSalon?filterSalon:
+            tab==="semestre"&&filterSemestre?`Semestre_${filterSemestre}`:
+            sedeName.replace(/\s+/g,"_");
+          return(
+            <>
+              <div style={{display:"flex",justifyContent:"flex-end",marginBottom:10}}>
+                <button onClick={()=>exportRaw(enriched,xlsLabel,`Horario_${xlsLabel}.xlsx`)}
+                  style={{display:"flex",alignItems:"center",gap:6,padding:"6px 16px",borderRadius:8,border:"2px solid #0F6E56",background:"#0F6E56",color:"#fff",cursor:"pointer",fontSize:13,fontWeight:600}}>
+                  ⬇ Descargar .xlsx
+                </button>
+              </div>
+              <CalGrid classes={enriched.map(ann)} dias={DAYS} hours={tab==="grilla"?activeHours:ALL_HOURS}
+                border={border} headerBg={headerBg} text={text} muted={muted}
+                onEdit={openEditClase} canEdit={canEdit}
+                colorFn={tab==="docente"?cls=>getDocColor(cls.docente,docentes):jCol}
+                dragId={tab==="grilla"?dragId:undefined}
+                setDragId={tab==="grilla"?setDragId:undefined}
+                dropTarget={tab==="grilla"?dropTarget:undefined}
+                setDropTarget={tab==="grilla"?setDropTarget:undefined}
+                onDrop={tab==="grilla"?handleDrop:undefined}
+                dropValid={tab==="grilla"?dropValid:undefined}/>
+            </>
+          );
+        })()}
         {tab==="gestion"&&(
           <GestionView docentes={docentes} salones={salones} sedes={sedes} sede={sede}
             materias={materias} setMaterias={setMaterias} classes={classes}
