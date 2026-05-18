@@ -7,7 +7,7 @@
 <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
+<script src="https://unpkg.com/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
 <style>*{box-sizing:border-box;margin:0;padding:0;}body{font-family:system-ui,sans-serif;}</style>
 </head>
 <body>
@@ -155,7 +155,6 @@ function exportRaw(rows,sheetName,fileName){
           border:brd
         }};
 
-        // Merge vertically if class spans multiple hours
         if(spanRows>1){
           merges.push({s:{r:rowNum-1,c:ci+1},e:{r:rowNum-1+spanRows-1,c:ci+1}});
           for(let k=1;k<spanRows;k++){
@@ -329,7 +328,7 @@ function ClaseModal({initialForm,onSave,onDelete,onClose,editId,classes,docentes
     const hi=ref?.horaInicio||"08:00";
     const dur=mat?(mat.horas*60):120;
     const hf=minToTime(Math.min(timeToMin(hi)+dur,timeToMin("22:00")));
-    const jornada=jornadaOf(hi,f.dia)?.id||"manana";
+    const jornada=jornadaOf(hi,form.dia)?.id||"manana";
     const newSede=ref?.sede||form.sede;
     setForm(f=>({...f,materia:nombre,semestre:mat?.semestre||f.semestre,jornada,horaInicio:hi,horaFin:hf,docente:ref?.docente||f.docente,sede:newSede,salon:ref?.salon||(salones[newSede]||[])[0]||f.salon,grupo:ref?.grupo||"A",dia:ref?.dia||"Lunes"}));
     setVal(null);
