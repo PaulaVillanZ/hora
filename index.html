@@ -178,7 +178,9 @@ function exportRaw(rows,sheetName,fileName){
   XLSX.writeFile(wb,fileName);
 }
 
-function timeToMin(t){const[h,m]=t.split(":").map(Number);return h*60+m;}
+function timeToMin(t){if(!t)return 0;const[h,m]=t.split(":").map(Number);return h*60+m;}
+function normalizeTime(t){if(!t)return"08:00";const pts=t.split(":");const h=parseInt(pts[0]||0,10);const m=parseInt(pts[1]||0,10);return String(h).padStart(2,"0")+":"+String(m).padStart(2,"0");}
+function normalizeClass(c){const hi=normalizeTime(c.horaInicio);const hf=normalizeTime(c.horaFin);return{...c,horaInicio:hi,horaFin:hf};}
 function minToTime(m){return`${String(Math.floor(m/60)).padStart(2,"0")}:${String(m%60).padStart(2,"0")}`;}
 function jornadaOf(h,dia){
   if(dia==="Sábado"||dia==="Domingo")return JORNADAS[2];
@@ -348,7 +350,8 @@ function ClaseModal({initialForm,onSave,onDelete,onClose,editId,classes,docentes
   };
 
   const save=()=>{
-    const fFixed={...form, jornada: jornadaOf(form.horaInicio, form.dia)?.id||"manana"};
+    const fNorm=normalizeClass(form);
+    const fFixed={...fNorm, jornada: jornadaOf(fNorm.horaInicio, fNorm.dia)?.id||"manana"};
     const r=validateConflicts(fFixed,classes,editId,docentes);
     if(!r.ok){setVal(r);return;}
     onSave(fFixed);
@@ -394,7 +397,85 @@ function ClaseModal({initialForm,onSave,onDelete,onClose,editId,classes,docentes
   );
 }
 
-function GestionView({docentes,salones,sedes,sede,materias,setMaterias,classes,border,text,muted,surface,canEdit,onNewDoc,onEditDoc,onNewSede,onEditSede,onDelSalon,onEditSalon,newSalon,setNewSalon,saveSalon,gTab,setGTab}){
+function DocentesTab({docentes,classes,canEdit,onNewDoc,onEditDoc,onDelClase,surface,border,text,muted}){
+  const [selectedDoc, setSelectedDoc] = useState(null);
+
+  const docClases = selectedDoc ? classes.filter(c=>c.docente===selectedDoc) : [];
+  const selectedDocObj = docentes.find(d=>d.id===selectedDoc);
+
+  return(
+    <div style={{display:"grid",gridTemplateColumns:selectedDoc?"1fr 1fr":"1fr",gap:16}}>
+      {/* Lista de docentes */}
+      <div>
+        {canEdit&&<button onClick={onNewDoc} style={{...btn("#185FA5","#fff"),fontWeight:600,marginBottom:14}}>+ Nuevo Docente</button>}
+        <div style={{display:"flex",flexDirection:"column",gap:8}}>
+          {docentes.map((d,i)=>{
+            const col=DOC_COLORS[i%DOC_COLORS.length];
+            const hrs=docHours(d.id,classes);
+            const claseCount=classes.filter(c=>c.docente===d.id).length;
+            const isSelected=selectedDoc===d.id;
+            return(
+              <div key={d.id}
+                onClick={()=>setSelectedDoc(isSelected?null:d.id)}
+                style={{background:isSelected?col+"18":surface,border:`2px solid ${isSelected?col:col+"44"}`,borderRadius:10,padding:14,display:"flex",justifyContent:"space-between",alignItems:"center",cursor:"pointer",transition:"all .15s"}}>
+                <div>
+                  <div style={{fontWeight:700,color:col,fontSize:13}}>{d.name}</div>
+                  <div style={{fontSize:11,color:muted,marginTop:2}}>{d.email||"Sin correo"}</div>
+                  <div style={{fontSize:12,color:col,marginTop:6,fontWeight:600}}>{hrs}h/sem · {claseCount} clase{claseCount!==1?"s":""}</div>
+                </div>
+                <div style={{display:"flex",gap:6,alignItems:"center"}}>
+                  {canEdit&&<button onClick={e=>{e.stopPropagation();onEditDoc(d);}} style={btn("#f1f5f9","#334155")}>Editar</button>}
+                  <span style={{fontSize:18,color:isSelected?col:muted}}>{isSelected?"▲":"▼"}</span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Panel de clases del docente seleccionado */}
+      {selectedDoc&&(
+        <div style={{background:surface,border:`2px solid ${DOC_COLORS[docentes.findIndex(d=>d.id===selectedDoc)%DOC_COLORS.length]}44`,borderRadius:12,padding:16,height:"fit-content"}}>
+          <div style={{marginBottom:14}}>
+            <div style={{fontWeight:700,fontSize:15,color:DOC_COLORS[docentes.findIndex(d=>d.id===selectedDoc)%DOC_COLORS.length]}}>{selectedDocObj?.name}</div>
+            <div style={{fontSize:12,color:muted,marginTop:2}}>{docClases.length} clase{docClases.length!==1?"s":""} asignadas</div>
+          </div>
+          {docClases.length===0?(
+            <div style={{color:muted,fontSize:13,textAlign:"center",padding:"20px 0"}}>Sin clases asignadas.</div>
+          ):(
+            <div style={{display:"flex",flexDirection:"column",gap:8}}>
+              {docClases.map(c=>{
+                const jornadaInfo=jornadaOf(c.horaInicio,c.dia);
+                return(
+                  <div key={c.id} style={{background:jornadaInfo?.bg||"#f1f5f9",border:`1px solid ${jornadaInfo?.color||border}44`,borderRadius:8,padding:"10px 12px",display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
+                    <div style={{flex:1}}>
+                      <div style={{fontWeight:700,fontSize:13,color:text}}>{c.materia}</div>
+                      <div style={{fontSize:11,color:muted,marginTop:3}}>
+                        {c.dia} · {c.horaInicio}–{c.horaFin}
+                      </div>
+                      <div style={{fontSize:11,color:muted,marginTop:1}}>
+                        Sede: {c.sede_name||c.sede} · Salón: {c.salon} · Gr. {c.grupo} · Sem. {c.semestre}
+                      </div>
+                    </div>
+                    {canEdit&&(
+                      <button
+                        onClick={()=>{if(window.confirm(`¿Eliminar "${c.materia}" del horario?`))onDelClase(c.id);}}
+                        style={{background:"transparent",border:"none",color:"#dc2626",cursor:"pointer",fontSize:20,lineHeight:1,padding:"0 4px",marginLeft:8,flexShrink:0}}>
+                        ×
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function GestionView({docentes,salones,sedes,sede,materias,setMaterias,classes,border,text,muted,surface,canEdit,onNewDoc,onEditDoc,onNewSede,onEditSede,onDelSalon,onEditSalon,onDelClase,newSalon,setNewSalon,saveSalon,gTab,setGTab}){
   const [matModal,setMatModal]=useState(null);
   const [salonSede,setSalonSede]=useState(sede);
   const [editSalon,setEditSalon]=useState(null);
@@ -420,25 +501,11 @@ function GestionView({docentes,salones,sedes,sede,materias,setMaterias,classes,b
       </div>
 
       {gTab==="docentes"&&(
-        <div>
-          {canEdit&&<button onClick={onNewDoc} style={{...btn("#185FA5","#fff"),fontWeight:600,marginBottom:14}}>+ Nuevo Docente</button>}
-          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(260px,1fr))",gap:10}}>
-            {docentes.map((d,i)=>{
-              const col=DOC_COLORS[i%DOC_COLORS.length];
-              const hrs=docHours(d.id,classes);
-              return(
-                <div key={d.id} style={{background:surface,border:`2px solid ${col}44`,borderRadius:10,padding:14,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                  <div>
-                    <div style={{fontWeight:700,color:col,fontSize:13}}>{d.name}</div>
-                    <div style={{fontSize:11,color:muted,marginTop:2}}>{d.email||"Sin correo"}</div>
-                    <div style={{fontSize:12,color:col,marginTop:6,fontWeight:600}}>{hrs}h/sem · {classes.filter(c=>c.docente===d.id).length} clases</div>
-                  </div>
-                  {canEdit&&<button onClick={()=>onEditDoc(d)} style={btn("#f1f5f9","#334155")}>Editar</button>}
-                </div>
-              );
-            })}
-          </div>
-        </div>
+        <DocentesTab
+          docentes={docentes} classes={classes} canEdit={canEdit}
+          onNewDoc={onNewDoc} onEditDoc={onEditDoc} onDelClase={onDelClase}
+          surface={surface} border={border} text={text} muted={muted}
+        />
       )}
 
       {gTab==="materias"&&(
@@ -691,7 +758,7 @@ function App(){
   useEffect(()=>{
     jsonbinLoad().then(record=>{
       if(record){
-        if(record.classes)   setClasses(record.classes);
+        if(record.classes)   setClasses(record.classes.map(normalizeClass));
         if(record.docentes)  setDocentes(record.docentes);
         if(record.materias)  setMaterias(record.materias);
         if(record.salones)   setSalones(record.salones);
@@ -704,7 +771,7 @@ function App(){
           const backup=localStorage.getItem("horarios_backup");
           if(backup){
             const r=JSON.parse(backup);
-            if(r.classes)   setClasses(r.classes);
+            if(r.classes)   setClasses(r.classes.map(normalizeClass));
             if(r.docentes)  setDocentes(r.docentes);
             if(r.materias)  setMaterias(r.materias);
             if(r.salones)   setSalones(r.salones);
@@ -804,7 +871,8 @@ function App(){
   const openEditClase=cls=>{if(!canEdit)return;setEditClaseId(cls.id);setClaseForm({materia:cls.materia,semestre:cls.semestre,jornada:cls.jornada,grupo:cls.grupo,docente:cls.docente,sede:cls.sede,salon:cls.salon,dia:cls.dia,horaInicio:cls.horaInicio,horaFin:cls.horaFin});setShowClase(true);};
   const saveClase=f=>{
     // Siempre recalcular jornada desde horaInicio para que sea consistente
-    const fFixed={...f, jornada: jornadaOf(f.horaInicio, f.dia)?.id||"manana"};
+    const fNorm=normalizeClass(f);
+    const fFixed={...fNorm, jornada: jornadaOf(fNorm.horaInicio, fNorm.dia)?.id||"manana"};
     const r=validateConflicts(fFixed,classes,editClaseId,docentes);
     if(!r.ok){showToast(r.msg,"danger");return;}
     if(editClaseId){setClasses(cs=>cs.map(c=>c.id===editClaseId?{...fFixed,id:editClaseId}:c));showToast("Clase actualizada.");}
@@ -812,6 +880,7 @@ function App(){
     setShowClase(false);
   };
   const delClase=()=>{setClasses(cs=>cs.filter(c=>c.id!==editClaseId));setShowClase(false);showToast("Clase eliminada.","danger");};
+  const delClaseById=(id)=>{setClasses(cs=>cs.filter(c=>c.id!==id));showToast("Clase eliminada.","danger");};
 
   const openNewDoc=()=>{setEditDocId(null);setDocForm({name:"",email:""});setShowDoc(true);};
   const openEditDoc=d=>{setEditDocId(d.id);setDocForm({name:d.name,email:d.email});setShowDoc(true);};
@@ -993,11 +1062,11 @@ function App(){
         })()}
         {tab==="gestion"&&(
           <GestionView docentes={docentes} salones={salones} sedes={sedes} sede={sede}
-            materias={materias} setMaterias={setMaterias} classes={classes}
+            materias={materias} setMaterias={setMaterias} classes={classes.map(c=>({...c,sede_name:sedes.find(s=>s.id===c.sede)?.name||c.sede}))}
             border={border} text={text} muted={muted} surface={surface} canEdit={canEdit}
             onNewDoc={openNewDoc} onEditDoc={openEditDoc}
             onNewSede={openNewSede} onEditSede={openEditSede}
-            onDelSalon={delSalon} onEditSalon={editSalonFn} newSalon={newSalon} setNewSalon={setNewSalon} saveSalon={saveSalon}
+            onDelSalon={delSalon} onEditSalon={editSalonFn} onDelClase={delClaseById} newSalon={newSalon} setNewSalon={setNewSalon} saveSalon={saveSalon}
             gTab={gTab} setGTab={setGTab}/>
         )}
         {tab==="stats"&&(
