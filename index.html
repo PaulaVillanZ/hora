@@ -139,17 +139,12 @@ function jornadaBg(h,dia){return jornadaOf(h,dia)?.bg||"transparent";}
 function getDocColor(id,docs){const i=docs.findIndex(d=>d.id===id);return DOC_COLORS[i%DOC_COLORS.length]||"#888";}
 function docHours(id,cls){return cls.filter(c=>c.docente===id).reduce((a,c)=>a+(timeToMin(c.horaFin)-timeToMin(c.horaInicio))/60,0);}
 
-function hexToArgb(hex){return "FF"+hex.replace("#","");}
 function exportRaw(rows, sheetName, fileName){
-  const DIAS=["Lunes","Martes","Miércoles","Jueves","Viernes","Sábado","Domingo"];
-  const hours=ALL_HOURS;
   const dias=DAYS.filter(d=>rows.some(r=>r.dia===d));
   if(dias.length===0){alert("No hay clases para exportar.");return;}
-
+  const hours=ALL_HOURS;
   const wb=XLSX.utils.book_new();
   const ws={};
-
-  // Header row: col 0 = "Hora", then each día
   const headerFill={patternType:"solid",fgColor:{rgb:"FF1E3A5F"}};
   const headerFont={bold:true,color:{rgb:"FFFFFFFF"},sz:11};
   ws["A1"]={v:"Hora",t:"s",s:{fill:headerFill,font:headerFont,alignment:{horizontal:"center"}}};
@@ -157,55 +152,33 @@ function exportRaw(rows, sheetName, fileName){
     const col=XLSX.utils.encode_col(i+1);
     ws[`${col}1`]={v:d,t:"s",s:{fill:headerFill,font:headerFont,alignment:{horizontal:"center"}}};
   });
-
-  // Jornada bg colors
   const jBg={"manana":"FFDBEAFE","tarde":"FFFEF3C7","noche":"FFEDE9FE"};
   const jFg={"manana":"FF0369A1","tarde":"FFB45309","noche":"FF7C3AED"};
-
-  // Data rows
   hours.forEach((h,ri)=>{
     const rowNum=ri+2;
     const jId=timeToMin(h)>=18*60?"noche":timeToMin(h)>=12*60?"tarde":"manana";
-    const rowBg=jBg[jId];
-    const hourFg=jFg[jId];
-
-    // Hora cell
     ws[`A${rowNum}`]={v:h,t:"s",s:{
-      fill:{patternType:"solid",fgColor:{rgb:rowBg}},
-      font:{bold:true,color:{rgb:hourFg},sz:10},
+      fill:{patternType:"solid",fgColor:{rgb:jBg[jId]}},
+      font:{bold:true,color:{rgb:jFg[jId]},sz:10},
       alignment:{horizontal:"center",vertical:"center"}
     }};
-
     dias.forEach((d,ci)=>{
       const col=XLSX.utils.encode_col(ci+1);
-      const cellRef=`${col}${rowNum}`;
       const isWeekend=d==="Sábado"||d==="Domingo";
       const cellJid=isWeekend?"noche":jId;
-      const cellBg=jBg[cellJid];
-
-      // All classes that overlap this hour slot
       const cls=rows.filter(r=>r.dia===d&&timeToMin(r.horaInicio)<=timeToMin(h)&&timeToMin(r.horaFin)>timeToMin(h));
       const val=cls.map(c=>`${c.materia} | Gr.${c.grupo}\n${c.docente_name||c.docente} | ${c.salon}`).join("\n─────\n");
-
-      ws[cellRef]={v:val||"",t:"s",s:{
-        fill:{patternType:"solid",fgColor:{rgb:cellBg}},
+      ws[`${col}${rowNum}`]={v:val,t:"s",s:{
+        fill:{patternType:"solid",fgColor:{rgb:jBg[cellJid]}},
         font:{sz:9,color:{rgb:"FF1E293B"}},
         alignment:{horizontal:"left",vertical:"top",wrapText:true},
-        border:{
-          top:{style:"thin",color:{rgb:"FFCBD5E1"}},
-          bottom:{style:"thin",color:{rgb:"FFCBD5E1"}},
-          left:{style:"thin",color:{rgb:"FFCBD5E1"}},
-          right:{style:"thin",color:{rgb:"FFCBD5E1"}}
-        }
+        border:{top:{style:"thin",color:{rgb:"FFCBD5E1"}},bottom:{style:"thin",color:{rgb:"FFCBD5E1"}},left:{style:"thin",color:{rgb:"FFCBD5E1"}},right:{style:"thin",color:{rgb:"FFCBD5E1"}}}
       }};
     });
   });
-
-  // Column widths and row heights
   ws["!cols"]=[{wch:7},...dias.map(()=>({wch:32}))];
   ws["!rows"]=[{hpt:18},...hours.map(()=>({hpt:48}))];
   ws["!ref"]=XLSX.utils.encode_range({s:{r:0,c:0},e:{r:hours.length,c:dias.length}});
-
   XLSX.utils.book_append_sheet(wb,ws,sheetName.slice(0,31));
   XLSX.writeFile(wb,fileName);
 }
