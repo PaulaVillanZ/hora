@@ -178,7 +178,9 @@ function exportRaw(rows,sheetName,fileName){
   XLSX.writeFile(wb,fileName);
 }
 
-function timeToMin(t){const[h,m]=t.split(":").map(Number);return h*60+m;}
+function timeToMin(t){if(!t)return 0;const[h,m]=t.split(":").map(Number);return h*60+m;}
+function normalizeTime(t){if(!t)return"08:00";const pts=t.split(":");const h=parseInt(pts[0]||0,10);const m=parseInt(pts[1]||0,10);return String(h).padStart(2,"0")+":"+String(m).padStart(2,"0");}
+function normalizeClass(c){const hi=normalizeTime(c.horaInicio);const hf=normalizeTime(c.horaFin);return{...c,horaInicio:hi,horaFin:hf};}
 function minToTime(m){return`${String(Math.floor(m/60)).padStart(2,"0")}:${String(m%60).padStart(2,"0")}`;}
 function jornadaOf(h,dia){
   if(dia==="Sábado"||dia==="Domingo")return JORNADAS[2];
@@ -189,10 +191,23 @@ function jornadaBg(h,dia){return jornadaOf(h,dia)?.bg||"transparent";}
 function getDocColor(id,docs){const i=docs.findIndex(d=>d.id===id);return DOC_COLORS[i%DOC_COLORS.length]||"#888";}
 function docHours(id,cls){return cls.filter(c=>c.docente===id).reduce((a,c)=>a+(timeToMin(c.horaFin)-timeToMin(c.horaInicio))/60,0);}
 
-function validateConflicts(cls,all,editId,docentes){
+function validateConflicts(cls,all,editId,docentes,bloqueos=[]){
   const others=all.filter(c=>c.id!==editId);
   const si=timeToMin(cls.horaInicio),sf=timeToMin(cls.horaFin);
   if(sf<=si)return{ok:false,msg:"La hora fin debe ser posterior a la hora inicio."};
+  // Verificar bloqueos del docente
+  if(cls.docente&&cls.docente!=="pendiente"){
+    for(const b of bloqueos){
+      if(b.docente!==cls.docente)continue;
+      const diasB=b.dias||[b.dia];
+      if(!diasB.includes(cls.dia))continue;
+      const bi=timeToMin(b.horaInicio),bf=timeToMin(b.horaFin);
+      if(si<bf&&sf>bi){
+        const dn=docentes.find(d=>d.id===cls.docente)?.name||cls.docente;
+        return{ok:false,msg:`Docente bloqueado: ${dn} no está disponible el ${cls.dia} de ${b.horaInicio} a ${b.horaFin}.`};
+      }
+    }
+  }
   for(const c of others){
     if(c.dia!==cls.dia)continue;
     const ci=timeToMin(c.horaInicio),cf=timeToMin(c.horaFin);
@@ -229,7 +244,7 @@ function PillButtons({options,value,onChange,color,muted}){
   );
 }
 
-function CalGrid({classes,dias,hours,border,headerBg,text,muted,onEdit,canEdit,colorFn,dragId,setDragId,dropTarget,setDropTarget,onDrop,dropValid}){
+function CalGrid({classes,dias,hours,border,headerBg,text,muted,onEdit,canEdit,colorFn,dragId,setDragId,dropTarget,setDropTarget,onDrop,dropValid,bloqueos=[],filterDocente,onCellClick}){
   return(
     <div style={{overflowX:"auto",userSelect:"none"}}>
       <table style={{borderCollapse:"collapse",tableLayout:"fixed",width:"100%",minWidth:720}}>
@@ -255,6 +270,23 @@ function CalGrid({classes,dias,hours,border,headerBg,text,muted,onEdit,canEdit,c
                     onDragOver={e=>{e.preventDefault();setDropTarget&&setDropTarget({dia:d,hora:h});}}
                     onDragLeave={()=>setDropTarget&&setDropTarget(null)}
                     onDrop={()=>onDrop&&onDrop(d,h)}>
+                    {/* Bloqueos en esta celda */}
+                    {bloqueos.filter(b=>{
+                      if(filterDocente&&filterDocente!=="pendiente"&&b.docente!==filterDocente)return false;
+                      const diasB=b.dias||[b.dia];
+                      if(!diasB.includes(d))return false;
+                      const bi=timeToMin(b.horaInicio),bf=timeToMin(b.horaFin);
+                      const hi=timeToMin(h);
+                      return hi>=bi&&hi<bf;
+                    }).map(b=>(
+                      <div key={b.id} style={{position:"absolute",top:2,left:2,right:2,bottom:2,
+                        background:"repeating-linear-gradient(45deg,#94a3b822,#94a3b822 4px,transparent 4px,transparent 10px)",
+                        borderRadius:6,border:"1.5px dashed #94a3b8",zIndex:1,display:"flex",alignItems:"center",justifyContent:"center",
+                        flexDirection:"column",gap:2,padding:"4px 6px",boxSizing:"border-box"}}>
+                        <span style={{fontSize:10,color:"#64748b",fontWeight:700,textAlign:"center",lineHeight:1.2}}>🔒 No disponible</span>
+                        {b.motivo&&<span style={{fontSize:9,color:"#94a3b8",textAlign:"center",overflow:"hidden",whiteSpace:"nowrap",maxWidth:"100%",textOverflow:"ellipsis"}}>{b.motivo}</span>}
+                      </div>
+                    ))}
                     {starting.map(cls=>{
                       const col=colorFn(cls);
                       const slots=Math.max(1,Math.round((timeToMin(cls.horaFin)-timeToMin(cls.horaInicio))/60));
@@ -348,9 +380,11 @@ function ClaseModal({initialForm,onSave,onDelete,onClose,editId,classes,docentes
   };
 
   const save=()=>{
-    const r=validateConflicts(form,classes,editId,docentes);
+    const fNorm=normalizeClass(form);
+    const fFixed={...fNorm, jornada: jornadaOf(fNorm.horaInicio, fNorm.dia)?.id||"manana"};
+    const r=validateConflicts(fFixed,classes,editId,docentes,bloqueos);
     if(!r.ok){setVal(r);return;}
-    onSave(form);
+    onSave(fFixed);
   };
 
   return(
@@ -393,12 +427,175 @@ function ClaseModal({initialForm,onSave,onDelete,onClose,editId,classes,docentes
   );
 }
 
-function GestionView({docentes,salones,sedes,sede,materias,setMaterias,classes,setClasses,border,text,muted,surface,canEdit,onNewDoc,onEditDoc,onNewSede,onEditSede,onDelSalon,onEditSalon,newSalon,setNewSalon,saveSalon,gTab,setGTab}){
+function DocentesTab({docentes,classes,canEdit,onNewDoc,onEditDoc,onDelClase,surface,border,text,muted}){
+  const [selectedDoc, setSelectedDoc] = useState(null);
+
+  const docClases = selectedDoc ? classes.filter(c=>c.docente===selectedDoc) : [];
+  const selectedDocObj = docentes.find(d=>d.id===selectedDoc);
+
+  return(
+    <div style={{display:"grid",gridTemplateColumns:selectedDoc?"1fr 1fr":"1fr",gap:16}}>
+      {/* Lista de docentes */}
+      <div>
+        {canEdit&&<button onClick={onNewDoc} style={{...btn("#185FA5","#fff"),fontWeight:600,marginBottom:14}}>+ Nuevo Docente</button>}
+        <div style={{display:"flex",flexDirection:"column",gap:8}}>
+          {docentes.map((d,i)=>{
+            const col=DOC_COLORS[i%DOC_COLORS.length];
+            const hrs=docHours(d.id,classes);
+            const claseCount=classes.filter(c=>c.docente===d.id).length;
+            const isSelected=selectedDoc===d.id;
+            return(
+              <div key={d.id}
+                style={{background:isSelected?col+"18":surface,border:`2px solid ${isSelected?col:col+"44"}`,borderRadius:10,padding:14,display:"flex",justifyContent:"space-between",alignItems:"center",transition:"all .15s"}}>
+                {/* Clic en el nombre/info abre las clases */}
+                <div onClick={()=>setSelectedDoc(isSelected?null:d.id)} style={{flex:1,cursor:"pointer"}}>
+                  <div style={{fontWeight:700,color:col,fontSize:13}}>{d.name}</div>
+                  <div style={{fontSize:11,color:muted,marginTop:2}}>{d.email||"Sin correo"}</div>
+                  <div style={{fontSize:12,color:col,marginTop:6,fontWeight:600}}>{hrs}h/sem · {claseCount} clase{claseCount!==1?"s":""} · <span style={{textDecoration:"underline",opacity:.7}}>ver clases {isSelected?"▲":"▼"}</span></div>
+                </div>
+                {/* Botones de acción separados */}
+                <div style={{display:"flex",gap:6,alignItems:"center",marginLeft:10,flexShrink:0}}>
+                  {canEdit&&(
+                    <>
+                      <button onClick={()=>onEditDoc(d)} style={{...btn("#f1f5f9","#334155"),fontSize:12,padding:"5px 12px"}}>Editar</button>
+                    </>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Panel de clases del docente seleccionado */}
+      {selectedDoc&&(
+        <div style={{background:surface,border:`2px solid ${DOC_COLORS[docentes.findIndex(d=>d.id===selectedDoc)%DOC_COLORS.length]}44`,borderRadius:12,padding:16,height:"fit-content"}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:14}}>
+            <div>
+              <div style={{fontWeight:700,fontSize:15,color:DOC_COLORS[docentes.findIndex(d=>d.id===selectedDoc)%DOC_COLORS.length]}}>{selectedDocObj?.name}</div>
+              <div style={{fontSize:12,color:muted,marginTop:2}}>{docClases.length} clase{docClases.length!==1?"s":""} asignadas</div>
+            </div>
+            <button onClick={()=>setSelectedDoc(null)} style={{background:"transparent",border:"none",cursor:"pointer",fontSize:20,color:muted,lineHeight:1}}>×</button>
+          </div>
+          {docClases.length===0?(
+            <div style={{color:muted,fontSize:13,textAlign:"center",padding:"20px 0"}}>Sin clases asignadas.</div>
+          ):(
+            <div style={{display:"flex",flexDirection:"column",gap:8}}>
+              {docClases.map(c=>{
+                const jornadaInfo=jornadaOf(c.horaInicio,c.dia);
+                return(
+                  <div key={c.id} style={{background:jornadaInfo?.bg||"#f1f5f9",border:`1px solid ${jornadaInfo?.color||border}44`,borderRadius:8,padding:"10px 12px",display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
+                    <div style={{flex:1}}>
+                      <div style={{fontWeight:700,fontSize:13,color:text}}>{c.materia}</div>
+                      <div style={{fontSize:11,color:muted,marginTop:3}}>{c.dia} · {c.horaInicio}–{c.horaFin}</div>
+                      <div style={{fontSize:11,color:muted,marginTop:1}}>Sede: {c.sede_name||c.sede} · Salón: {c.salon} · Gr. {c.grupo} · Sem. {c.semestre}</div>
+                    </div>
+                    {canEdit&&(
+                      <button
+                        onClick={()=>{if(window.confirm(`¿Eliminar "${c.materia}" del horario?`))onDelClase(c.id);}}
+                        style={{background:"transparent",border:"none",color:"#dc2626",cursor:"pointer",fontSize:20,lineHeight:1,padding:"0 4px",marginLeft:8,flexShrink:0}}
+                        title="Eliminar clase">
+                        ×
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+
+function BloqueoModal({docentes,onSave,onClose,surface,border,text,muted}){
+  const [docente,setDocente]=useState(docentes[0]?.id||"");
+  const [dias,setDias]=useState([]);
+  const [horaInicio,setHoraInicio]=useState("08:00");
+  const [horaFin,setHoraFin]=useState("10:00");
+  const [motivo,setMotivo]=useState("");
+
+  const toggleDia=(d)=>setDias(ds=>ds.includes(d)?ds.filter(x=>x!==d):[...ds,d]);
+
+  const save=()=>{
+    if(!docente||dias.length===0||!horaInicio||!horaFin)return;
+    if(timeToMin(horaFin)<=timeToMin(horaInicio))return;
+    onSave({id:"b"+Date.now(),docente,dias,horaInicio,horaFin,motivo});
+  };
+
+  return(
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.6)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1200}}>
+      <div style={{background:surface,borderRadius:12,padding:24,width:460,maxWidth:"95vw",border:`1px solid ${border}`}}>
+        <div style={{display:"flex",justifyContent:"space-between",marginBottom:18}}>
+          <h3 style={{margin:0,fontSize:16,fontWeight:700,color:text}}>🔒 Bloquear disponibilidad</h3>
+          <button onClick={onClose} style={{background:"transparent",border:"none",cursor:"pointer",fontSize:20,color:muted}}>×</button>
+        </div>
+        <div style={{display:"flex",flexDirection:"column",gap:12}}>
+          <div>
+            <label style={{fontSize:12,color:muted,display:"block",marginBottom:4}}>Docente</label>
+            <select value={docente} onChange={e=>setDocente(e.target.value)}
+              style={{width:"100%",padding:"7px 10px",borderRadius:6,border:`1px solid ${border}`,background:surface,color:text,fontSize:13}}>
+              {docentes.map(d=><option key={d.id} value={d.id}>{d.name}</option>)}
+            </select>
+          </div>
+          <div>
+            <label style={{fontSize:12,color:muted,display:"block",marginBottom:6}}>Días bloqueados</label>
+            <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+              {["Lunes","Martes","Miércoles","Jueves","Viernes","Sábado","Domingo"].map(d=>{
+                const on=dias.includes(d);
+                return(
+                  <button key={d} onClick={()=>toggleDia(d)}
+                    style={{padding:"5px 12px",borderRadius:16,border:`2px solid ${on?"#dc2626":"#cbd5e1"}`,
+                    background:on?"#fee2e2":"transparent",color:on?"#dc2626":muted,
+                    fontWeight:on?700:400,cursor:"pointer",fontSize:12}}>
+                    {d.slice(0,3)}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+            <div>
+              <label style={{fontSize:12,color:muted,display:"block",marginBottom:4}}>Hora inicio</label>
+              <select value={horaInicio} onChange={e=>setHoraInicio(e.target.value)}
+                style={{width:"100%",padding:"7px 10px",borderRadius:6,border:`1px solid ${border}`,background:surface,color:text,fontSize:13}}>
+                {["06:00","07:00","08:00","09:00","10:00","11:00","12:00","13:00","14:00","15:00","16:00","17:00","18:00","19:00","20:00","21:00"].map(h=><option key={h}>{h}</option>)}
+              </select>
+            </div>
+            <div>
+              <label style={{fontSize:12,color:muted,display:"block",marginBottom:4}}>Hora fin</label>
+              <select value={horaFin} onChange={e=>setHoraFin(e.target.value)}
+                style={{width:"100%",padding:"7px 10px",borderRadius:6,border:`1px solid ${border}`,background:surface,color:text,fontSize:13}}>
+                {["07:00","08:00","09:00","10:00","11:00","12:00","13:00","14:00","15:00","16:00","17:00","18:00","19:00","20:00","21:00","22:00"].filter(h=>h>horaInicio).map(h=><option key={h}>{h}</option>)}
+              </select>
+            </div>
+          </div>
+          <div>
+            <label style={{fontSize:12,color:muted,display:"block",marginBottom:4}}>Motivo (opcional)</label>
+            <input value={motivo} onChange={e=>setMotivo(e.target.value)} placeholder="Ej: Cita médica, reunión..."
+              style={{width:"100%",padding:"7px 10px",borderRadius:6,border:`1px solid ${border}`,background:surface,color:text,fontSize:13}}/>
+          </div>
+        </div>
+        {dias.length===0&&<div style={{marginTop:10,fontSize:12,color:"#b45309"}}>⚠ Selecciona al menos un día.</div>}
+        <div style={{display:"flex",gap:8,marginTop:18,justifyContent:"flex-end"}}>
+          <button onClick={onClose} style={{background:"transparent",border:`1px solid ${border}`,borderRadius:7,padding:"7px 14px",cursor:"pointer",fontSize:13,color:muted}}>Cancelar</button>
+          <button onClick={save} disabled={dias.length===0}
+            style={{background:dias.length>0?"#dc2626":"#e2e8f0",color:dias.length>0?"#fff":"#94a3b8",border:"none",borderRadius:7,padding:"7px 18px",fontWeight:700,cursor:dias.length>0?"pointer":"default",fontSize:13}}>
+            Bloquear
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function GestionView({docentes,salones,sedes,sede,materias,setMaterias,classes,border,text,muted,surface,canEdit,onNewDoc,onEditDoc,onNewSede,onEditSede,onDelSalon,onEditSalon,onDelClase,newSalon,setNewSalon,saveSalon,gTab,setGTab}){
   const [matModal,setMatModal]=useState(null);
   const [salonSede,setSalonSede]=useState(sede);
   const [editSalon,setEditSalon]=useState(null);
   const [editSalonVal,setEditSalonVal]=useState("");
-  const [selectedDoc,setSelectedDoc]=useState(null);
 
   const handleSaveMat=(mat)=>{
     const existe=materias.find(m=>m.id===mat.id);
@@ -420,52 +617,11 @@ function GestionView({docentes,salones,sedes,sede,materias,setMaterias,classes,s
       </div>
 
       {gTab==="docentes"&&(
-        <div>
-          {canEdit&&<button onClick={onNewDoc} style={{...btn("#185FA5","#fff"),fontWeight:600,marginBottom:14}}>+ Nuevo Docente</button>}
-          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(260px,1fr))",gap:10}}>
-            {docentes.map((d,i)=>{
-              const col=DOC_COLORS[i%DOC_COLORS.length];
-              const hrs=docHours(d.id,classes);
-              const isSelected=selectedDoc===d.id;
-              return(
-                <div key={d.id} style={{background:surface,border:`2px solid ${isSelected?col:col+"44"}`,borderRadius:10,overflow:"hidden"}}>
-                  <div style={{padding:14,display:"flex",justifyContent:"space-between",alignItems:"center",cursor:"pointer"}}
-                    onClick={()=>setSelectedDoc(isSelected?null:d.id)}>
-                    <div>
-                      <div style={{fontWeight:700,color:col,fontSize:13}}>{d.name}</div>
-                      <div style={{fontSize:11,color:muted,marginTop:2}}>{d.email||"Sin correo"}</div>
-                      <div style={{fontSize:12,color:col,marginTop:6,fontWeight:600}}>{hrs}h/sem · {classes.filter(c=>c.docente===d.id).length} clases</div>
-                    </div>
-                    <div style={{display:"flex",gap:6,alignItems:"center"}}>
-                      {canEdit&&<button onClick={e=>{e.stopPropagation();onEditDoc(d);}} style={btn("#f1f5f9","#334155")}>Editar</button>}
-                      <span style={{color:col,fontSize:16}}>{isSelected?"▲":"▼"}</span>
-                    </div>
-                  </div>
-                  {isSelected&&(()=>{
-                    const docClases=classes.filter(c=>c.docente===d.id);
-                    return(
-                      <div style={{borderTop:`1px solid ${col}33`,background:col+"0A",padding:12}}>
-                        {docClases.length===0&&<div style={{color:muted,fontSize:12}}>Sin clases asignadas.</div>}
-                        {docClases.map(c=>(
-                          <div key={c.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"6px 8px",marginBottom:4,background:surface,borderRadius:6,border:`1px solid ${col}22`}}>
-                            <div>
-                              <div style={{fontWeight:600,fontSize:12,color:text}}>{c.materia}</div>
-                              <div style={{fontSize:11,color:muted}}>{c.dia} {c.horaInicio}–{c.horaFin} · Gr.{c.grupo} · {sedes.find(s=>s.id===c.sede)?.name||c.sede}</div>
-                            </div>
-                            {canEdit&&(
-                              <button onClick={()=>{if(window.confirm(`¿Eliminar "${c.materia}" del horario?`))setClasses(cs=>cs.filter(x=>x.id!==c.id));}}
-                                style={{background:"transparent",border:"none",color:"#dc2626",cursor:"pointer",fontSize:18,lineHeight:1,padding:"0 4px"}}>×</button>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    );
-                  })()}
-                </div>
-              );
-            })}
-          </div>
-        </div>
+        <DocentesTab
+          docentes={docentes} classes={classes} canEdit={canEdit}
+          onNewDoc={onNewDoc} onEditDoc={onEditDoc} onDelClase={onDelClase}
+          surface={surface} border={border} text={text} muted={muted}
+        />
       )}
 
       {gTab==="materias"&&(
@@ -630,10 +786,10 @@ function StatsView({classes,allClasses,docentes,sedes,sede,border,text,muted,sur
   );
 }
 
-function FilterBar({tab,sede,setSede,sedes,filterDocente,setFilterDocente,filterSemestre,setFilterSemestre,filterSalon,setFilterSalon,jornadasOn,setJornadasOn,docentes,salones,border,text,muted,surface,canEdit,onNewClase}){
+function FilterBar({tab,sede,setSede,sedes,filterDocente,setFilterDocente,filterSemestre,setFilterSemestre,filterSalon,setFilterSalon,jornadasOn,setJornadasOn,docentes,salones,border,text,muted,surface,canEdit,onNewClase,onNewBloqueo}){
   const sedeColor=sedes.find(s=>s.id===sede)?.color||"#185FA5";
   const SedeSelect=()=>(
-    <select value={sede} onChange={e=>setSede(e.target.value)} style={{borderRadius:6,border:`1px solid ${border}`,padding:"5px 10px",background:surface,color:text,fontSize:13,fontWeight:600}}>
+    <select value={sede} onChange={e=>{setSede(e.target.value);setFilterDocente("");setFilterSalon("");setFilterSemestre("");}} style={{borderRadius:6,border:`1px solid ${border}`,padding:"5px 10px",background:surface,color:text,fontSize:13,fontWeight:600}}>
       <option value="">— Selecciona una sede —</option>
       {[...sedes].sort((a,b)=>a.name.localeCompare(b.name)).map(s=><option key={s.id} value={s.id}>{s.name}</option>)}
     </select>
@@ -699,7 +855,10 @@ function FilterBar({tab,sede,setSede,sedes,filterDocente,setFilterDocente,filter
       )}
       <div style={{flex:1}}/>
       {canEdit&&(
-        <button onClick={onNewClase} style={{background:"#185FA5",color:"#fff",border:"none",borderRadius:7,padding:"7px 18px",fontWeight:600,cursor:"pointer",fontSize:13}}>+ Nueva Clase</button>
+        <div style={{display:"flex",gap:6}}>
+          <button onClick={onNewClase} style={{background:"#185FA5",color:"#fff",border:"none",borderRadius:7,padding:"7px 18px",fontWeight:600,cursor:"pointer",fontSize:13}}>+ Nueva Clase</button>
+          <button onClick={onNewBloqueo} style={{background:"#dc2626",color:"#fff",border:"none",borderRadius:7,padding:"7px 14px",fontWeight:600,cursor:"pointer",fontSize:13}}>🔒 Bloquear</button>
+        </div>
       )}
     </div>
   );
@@ -711,6 +870,7 @@ function App(){
   const [materias, setMaterias] = useState(INIT_MATERIAS);
   const [salones,  setSalones]  = useState(INIT_SALONES);
   const [sedes,    setSedes]    = useState(INIT_SEDES);
+  const [bloqueos, setBloqueos] = useState([]);
   const [storageReady, setStorageReady] = useState(false);
   const [saving, setSaving] = useState(false);
   const initialized = useRef(false);
@@ -718,7 +878,8 @@ function App(){
   useEffect(()=>{
     jsonbinLoad().then(record=>{
       if(record){
-        if(record.classes)   setClasses(record.classes);
+        if(record.classes)   setClasses(record.classes.map(normalizeClass));
+        if(record.bloqueos)  setBloqueos(record.bloqueos);
         if(record.docentes)  setDocentes(record.docentes);
         if(record.materias)  setMaterias(record.materias);
         if(record.salones)   setSalones(record.salones);
@@ -731,7 +892,8 @@ function App(){
           const backup=localStorage.getItem("horarios_backup");
           if(backup){
             const r=JSON.parse(backup);
-            if(r.classes)   setClasses(r.classes);
+            if(r.classes)   setClasses(r.classes.map(normalizeClass));
+      if(r.bloqueos)  setBloqueos(r.bloqueos);
             if(r.docentes)  setDocentes(r.docentes);
             if(r.materias)  setMaterias(r.materias);
             if(r.salones)   setSalones(r.salones);
@@ -747,7 +909,7 @@ function App(){
   useEffect(()=>{
     if(!storageReady||!initialized.current)return;
     setSaving(true);
-    const data={classes,docentes,materias,salones,sedes};
+    const data={classes,docentes,materias,salones,sedes,bloqueos};
     jsonbinSave(data).then(ok=>{
       if(ok) try{localStorage.setItem("horarios_backup",JSON.stringify(data));}catch(_){}
     }).finally(()=>setTimeout(()=>setSaving(false),400));
@@ -765,6 +927,7 @@ function App(){
   const [filterSemestre, setFilterSemestre]= useState("");
   const [filterSalon,    setFilterSalon]   = useState("");
   const [jornadasOn,     setJornadasOn]    = useState({manana:true,tarde:true,noche:true});
+  const [showBloqueo,setShowBloqueo]= useState(false);
   const [showClase,  setShowClase]  = useState(false);
   const [showDoc,    setShowDoc]    = useState(false);
   const [showSede,   setShowSede]   = useState(false);
@@ -785,37 +948,58 @@ function App(){
   const activeHours=useMemo(()=>ALL_HOURS.filter(h=>JORNADAS.some(j=>jornadasOn[j.id]&&j.range.includes(h))),[jornadasOn]);
 
   const filtered=classes.filter(c=>{
-    const isDocenteTab=tab==="docente";
-    const isSalonTab=tab==="salon";
-    const pendienteDocente=isDocenteTab&&filterDocente==="pendiente";
-    const pendienteSalon=isSalonTab&&filterSalon==="pendiente";
-    // Pendiente con sede: filtrar por sede
-    if(pendienteDocente&&sede&&c.sede!==sede)return false;
-    if(pendienteSalon&&sede&&c.sede!==sede)return false;
-    // Pestañas normales sin pendiente
-    if(!isDocenteTab&&!isSalonTab&&c.sede!==sede)return false;
-    if(isDocenteTab&&!pendienteDocente&&sede&&c.sede!==sede)return false;
-    if(isSalonTab&&!pendienteSalon&&sede&&c.sede!==sede)return false;
-    if(filterDocente&&c.docente!==filterDocente)return false;
+    if(c.sede!==sede)return false;
     if(filterSemestre&&c.semestre!==filterSemestre)return false;
-    if(filterSalon&&c.salon!==filterSalon)return false;
-    if(tab==="grilla"&&!jornadasOn[c.jornada]){
-      if((c.dia==="Sábado"||c.dia==="Domingo")&&jornadasOn["noche"])return true;
-      return false;
+
+    // Filtro docente: solo aplica en tabs docente y grilla
+    if(tab==="docente"||tab==="grilla"){
+      if(filterDocente==="pendiente"){
+        // Pendiente = sin docente asignado (puede ser "pendiente", "" o null)
+        const sinDoc=!c.docente||c.docente==="pendiente";
+        if(!sinDoc)return false;
+      } else if(filterDocente){
+        if(c.docente!==filterDocente)return false;
+      }
+    }
+
+    // Filtro salón: solo aplica en tabs salon y grilla
+    if(tab==="salon"||tab==="grilla"){
+      if(filterSalon==="pendiente"){
+        // Pendiente = sin salón asignado (puede ser "pendiente", "" o null)
+        const sinSalon=!c.salon||c.salon==="pendiente";
+        if(!sinSalon)return false;
+      } else if(filterSalon){
+        if(c.salon!==filterSalon)return false;
+      }
+    }
+
+    if(tab==="grilla"){
+      const jornadaReal=jornadaOf(c.horaInicio,c.dia)?.id||"manana";
+      if(c.dia==="Sábado"||c.dia==="Domingo") return jornadasOn["noche"];
+      if(!jornadasOn[jornadaReal]) return false;
     }
     return true;
   });
-  const ann=cls=>{
-    const sedeName=sedes.find(s=>s.id===cls.sede)?.name||"";
-    const docenteName=docentes.find(d=>d.id===cls.docente)?.name.split(" ").slice(-1)[0]||"";
-    const showSede=tab==="docente"||(tab==="salon"&&filterSalon==="pendiente")||(tab==="docente"&&filterDocente==="pendiente");
-    return{...cls,_doc:showSede?sedeName:docenteName};
-  };
+  const ann=cls=>({...cls,_doc:docentes.find(d=>d.id===cls.docente)?.name.split(" ").slice(-1)[0]||""});
   const jCol=cls=>jornadaOf(cls.horaInicio,cls.dia)?.color||"#888";
 
   const defaultForm=()=>{
     const m0=materias[0];
-    return{materia:m0?.nombre||"",grupo:"A",docente:docentes[0]?.id||"",sede,salon:(salones[sede]||[])[0]||"",dia:"Lunes",horaInicio:"08:00",horaFin:m0?minToTime(timeToMin("08:00")+m0.horas*60):"10:00",semestre:m0?.semestre||"1",jornada:jornadaOf("08:00","Lunes")?.id||"manana"};
+    const sedeId=sede||(sedes[0]?.id||"");
+    const salonDefault=(salones[sedeId]||[])[0]||"pendiente";
+    const hi="08:00";
+    return{
+      materia:m0?.nombre||"",
+      grupo:"A",
+      docente:"pendiente",
+      sede:sedeId,
+      salon:salonDefault,
+      dia:"Lunes",
+      horaInicio:hi,
+      horaFin:m0?minToTime(Math.min(timeToMin(hi)+m0.horas*60,timeToMin("22:00"))):"10:00",
+      semestre:m0?.semestre||"1",
+      jornada:jornadaOf(hi,"Lunes")?.id||"manana"
+    };
   };
 
   const handleRoleConfirm=()=>{
@@ -827,13 +1011,19 @@ function App(){
   const openNewClase=()=>{if(!canEdit)return;setEditClaseId(null);setClaseForm(defaultForm());setShowClase(true);};
   const openEditClase=cls=>{if(!canEdit)return;setEditClaseId(cls.id);setClaseForm({materia:cls.materia,semestre:cls.semestre,jornada:cls.jornada,grupo:cls.grupo,docente:cls.docente,sede:cls.sede,salon:cls.salon,dia:cls.dia,horaInicio:cls.horaInicio,horaFin:cls.horaFin});setShowClase(true);};
   const saveClase=f=>{
-    const r=validateConflicts(f,classes,editClaseId,docentes);
+    // Siempre recalcular jornada desde horaInicio para que sea consistente
+    const fNorm=normalizeClass(f);
+    const fFixed={...fNorm, jornada: jornadaOf(fNorm.horaInicio, fNorm.dia)?.id||"manana"};
+    const r=validateConflicts(fFixed,classes,editClaseId,docentes,bloqueos);
     if(!r.ok){showToast(r.msg,"danger");return;}
-    if(editClaseId){setClasses(cs=>cs.map(c=>c.id===editClaseId?{...f,id:editClaseId}:c));showToast("Clase actualizada.");}
-    else{setClasses(cs=>[...cs,{...f,id:"c"+Date.now()}]);showToast("Clase creada.");}
+    if(editClaseId){setClasses(cs=>cs.map(c=>c.id===editClaseId?{...fFixed,id:editClaseId}:c));showToast("Clase actualizada.");}
+    else{setClasses(cs=>[...cs,{...fFixed,id:"c"+Date.now()}]);showToast("Clase creada.");}
     setShowClase(false);
   };
   const delClase=()=>{setClasses(cs=>cs.filter(c=>c.id!==editClaseId));setShowClase(false);showToast("Clase eliminada.","danger");};
+  const delClaseById=(id)=>{setClasses(cs=>cs.filter(c=>c.id!==id));showToast("Clase eliminada.","danger");};
+  const saveBloqueo=(b)=>{setBloqueos(bs=>[...bs,b]);setShowBloqueo(false);showToast("Bloqueo creado.");};
+  const delBloqueo=(id)=>{setBloqueos(bs=>bs.filter(b=>b.id!==id));showToast("Bloqueo eliminado.","danger");};
 
   const openNewDoc=()=>{setEditDocId(null);setDocForm({name:"",email:""});setShowDoc(true);};
   const openEditDoc=d=>{setEditDocId(d.id);setDocForm({name:d.name,email:d.email});setShowDoc(true);};
@@ -971,17 +1161,17 @@ function App(){
         jornadasOn={jornadasOn} setJornadasOn={setJornadasOn}
         docentes={docentes} salones={salones}
         border={border} text={text} muted={muted} surface={surface}
-        canEdit={canEdit} onNewClase={openNewClase}/>
+        canEdit={canEdit} onNewClase={openNewClase} onNewBloqueo={()=>setShowBloqueo(true)}/>
 
       {tab==="grilla"&&activeHours.length===0&&(
         <div style={{margin:16,padding:14,background:"#fef3c7",border:"1px solid #b45309",borderRadius:8,color:"#b45309",fontSize:13}}>Activa al menos una jornada para ver el horario.</div>
       )}
 
       <div style={{padding:16}}>
-        {!sede&&(tab==="grilla"||tab==="semestre")&&(
+        {!sede&&(tab==="grilla"||tab==="semestre"||tab==="docente"||tab==="salon")&&(
           <div style={{textAlign:"center",padding:60,color:"#94a3b8",fontSize:15}}>Selecciona una sede para ver los horarios.</div>
         )}
-        {(sede||(tab==="docente"||tab==="salon"))&&(tab==="grilla"||tab==="semestre"||tab==="docente"||tab==="salon")&&(()=>{
+        {sede&&(tab==="grilla"||tab==="semestre"||tab==="docente"||tab==="salon")&&(()=>{
           const sedeName=sedes.find(s=>s.id===sede)?.name||sede;
           const enriched=filtered.map(c=>({...c,
             docente_name:docentes.find(d=>d.id===c.docente)?.name||(c.docente==="pendiente"?"Pendiente":c.docente),
@@ -1004,22 +1194,24 @@ function App(){
             <CalGrid classes={enriched.map(ann)} dias={DAYS} hours={tab==="grilla"?activeHours:ALL_HOURS}
               border={border} headerBg={headerBg} text={text} muted={muted}
               onEdit={openEditClase} canEdit={canEdit}
-              colorFn={tab==="docente"?cls=>{const s=sedes.find(sd=>sd.id===cls.sede);return s?.color||getDocColor(cls.docente,docentes);}:jCol}
+              colorFn={tab==="docente"?cls=>getDocColor(cls.docente,docentes):jCol}
               dragId={tab==="grilla"?dragId:undefined}
               setDragId={tab==="grilla"?setDragId:undefined}
               dropTarget={tab==="grilla"?dropTarget:undefined}
               setDropTarget={tab==="grilla"?setDropTarget:undefined}
               onDrop={tab==="grilla"?handleDrop:undefined}
-              dropValid={tab==="grilla"?dropValid:undefined}/>
+              dropValid={tab==="grilla"?dropValid:undefined}
+            bloqueos={bloqueos}
+            filterDocente={filterDocente}/>
           </>);
         })()}
         {tab==="gestion"&&(
           <GestionView docentes={docentes} salones={salones} sedes={sedes} sede={sede}
-            materias={materias} setMaterias={setMaterias} classes={classes} setClasses={setClasses}
+            materias={materias} setMaterias={setMaterias} classes={classes.map(c=>({...c,sede_name:sedes.find(s=>s.id===c.sede)?.name||c.sede}))}
             border={border} text={text} muted={muted} surface={surface} canEdit={canEdit}
             onNewDoc={openNewDoc} onEditDoc={openEditDoc}
             onNewSede={openNewSede} onEditSede={openEditSede}
-            onDelSalon={delSalon} onEditSalon={editSalonFn} newSalon={newSalon} setNewSalon={setNewSalon} saveSalon={saveSalon}
+            onDelSalon={delSalon} onEditSalon={editSalonFn} onDelClase={delClaseById} newSalon={newSalon} setNewSalon={setNewSalon} saveSalon={saveSalon}
             gTab={gTab} setGTab={setGTab}/>
         )}
         {tab==="stats"&&(
@@ -1067,6 +1259,9 @@ function App(){
         </Overlay>
       )}
 
+      {showBloqueo&&<BloqueoModal
+        docentes={docentes} onSave={saveBloqueo} onClose={()=>setShowBloqueo(false)}
+        surface={surface} border={border} text={text} muted={muted}/>}
       {showClase&&<ClaseModal initialForm={claseForm} onSave={saveClase} onDelete={delClase} onClose={()=>setShowClase(false)} editId={editClaseId} classes={classes} docentes={docentes} sedes={sedes} salones={salones} materias={materias} surface={surface} border={border} text={text} muted={muted}/>}
 
       {showDoc&&(
