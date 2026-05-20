@@ -948,13 +948,15 @@ function App(){
   const activeHours=useMemo(()=>ALL_HOURS.filter(h=>JORNADAS.some(j=>jornadasOn[j.id]&&j.range.includes(h))),[jornadasOn]);
 
   const filtered=classes.filter(c=>{
-    if(c.sede!==sede)return false;
+    // En tab "docente" con un docente seleccionado, mostrar todas las sedes de ese docente
+    const ignorarSede = tab==="docente" && filterDocente && filterDocente!=="pendiente";
+    if(!ignorarSede && c.sede!==sede)return false;
+
     if(filterSemestre&&c.semestre!==filterSemestre)return false;
 
     // Filtro docente: solo aplica en tabs docente y grilla
     if(tab==="docente"||tab==="grilla"){
       if(filterDocente==="pendiente"){
-        // Pendiente = sin docente asignado (puede ser "pendiente", "" o null)
         const sinDoc=!c.docente||c.docente==="pendiente";
         if(!sinDoc)return false;
       } else if(filterDocente){
@@ -965,7 +967,6 @@ function App(){
     // Filtro salón: solo aplica en tabs salon y grilla
     if(tab==="salon"||tab==="grilla"){
       if(filterSalon==="pendiente"){
-        // Pendiente = sin salón asignado (puede ser "pendiente", "" o null)
         const sinSalon=!c.salon||c.salon==="pendiente";
         if(!sinSalon)return false;
       } else if(filterSalon){
