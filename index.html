@@ -298,7 +298,7 @@ function CalGrid({classes,dias,hours,border,headerBg,text,muted,onEdit,canEdit,c
                           onClick={canEdit?()=>onEdit(cls):undefined}
                           style={{position:"absolute",top:2,left:2,right:2,height:bh,background:col,borderRadius:6,padding:"5px 7px",cursor:canEdit?"pointer":"default",overflow:"hidden",zIndex:2,boxShadow:"0 2px 5px rgba(0,0,0,.2)",boxSizing:"border-box"}}>
                           <div style={{fontWeight:700,color:"#fff",fontSize:11,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{cls.materia}</div>
-                          {bh>38&&<div style={{color:"rgba(255,255,255,.85)",fontSize:10,marginTop:1,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{cls._doc||""}{cls._doc?" · ":""}{cls.salon}</div>}
+                          {bh>38&&<div style={{color:"rgba(255,255,255,.85)",fontSize:10,marginTop:1,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{cls._sedeName?`📍${cls._sedeName}`:(cls._doc||"")}{(cls._sedeName||cls._doc)?" · ":""}{cls.salon}</div>}
                           {bh>54&&<div style={{color:"rgba(255,255,255,.72)",fontSize:10}}>{cls.horaInicio}–{cls.horaFin} · Gr.{cls.grupo}</div>}
                         </div>
                       );
@@ -948,10 +948,10 @@ function App(){
   const activeHours=useMemo(()=>ALL_HOURS.filter(h=>JORNADAS.some(j=>jornadasOn[j.id]&&j.range.includes(h))),[jornadasOn]);
 
   const filtered=classes.filter(c=>{
-    // Si sede está vacía ("Selecciona una sede") no filtrar por sede
-    // Tampoco filtrar por sede en tab "docente" con docente específico seleccionado
-    const sinSedeSeleccionada = !sede;
-    const ignorarSede = sinSedeSeleccionada || (tab==="docente" && filterDocente && filterDocente!=="pendiente");
+    // Si sede está vacía no filtrar por sede (mostrar todas)
+    // En tab "docente" sin sede seleccionada: mostrar todas las sedes del docente
+    const sinSede = !sede;
+    const ignorarSede = sinSede || (tab==="docente" && !sede);
     if(!ignorarSede && c.sede!==sede)return false;
 
     if(filterSemestre&&c.semestre!==filterSemestre)return false;
@@ -983,7 +983,10 @@ function App(){
     }
     return true;
   });
-  const ann=cls=>({...cls,_doc:docentes.find(d=>d.id===cls.docente)?.name.split(" ").slice(-1)[0]||""});
+  const ann=cls=>({...cls,
+    _doc:docentes.find(d=>d.id===cls.docente)?.name.split(" ").slice(-1)[0]||"",
+    _sedeName:tab==="docente"&&!sede?sedes.find(s=>s.id===cls.sede)?.name||"":""
+  });
   const jCol=cls=>jornadaOf(cls.horaInicio,cls.dia)?.color||"#888";
 
   const defaultForm=()=>{
@@ -1197,7 +1200,7 @@ function App(){
             <CalGrid classes={enriched.map(ann)} dias={DAYS} hours={tab==="grilla"?activeHours:ALL_HOURS}
               border={border} headerBg={headerBg} text={text} muted={muted}
               onEdit={openEditClase} canEdit={canEdit}
-              colorFn={tab==="docente"?cls=>getDocColor(cls.docente,docentes):jCol}
+              colorFn={tab==="docente"&&!sede?cls=>{const s=sedes.find(x=>x.id===cls.sede);return s?.color||"#888";}:tab==="docente"&&sede?jCol:jCol}
               dragId={tab==="grilla"?dragId:undefined}
               setDragId={tab==="grilla"?setDragId:undefined}
               dropTarget={tab==="grilla"?dropTarget:undefined}
