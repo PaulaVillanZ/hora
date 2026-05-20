@@ -795,11 +795,9 @@ function FilterBar({tab,sede,setSede,sedes,filterDocente,setFilterDocente,filter
     </select>
   );
   if(tab==="gestion"||tab==="stats") return null;
-  const ocultarSede = tab==="docente" && filterDocente && filterDocente!=="pendiente";
   return(
     <div style={{background:surface,borderBottom:`1px solid ${border}`,padding:"10px 16px",display:"flex",gap:10,alignItems:"center",flexWrap:"wrap"}}>
-      {!ocultarSede && <SedeSelect/>}
-      {ocultarSede && <span style={{fontSize:12,color:muted,fontStyle:"italic"}}>Mostrando todas las sedes</span>}
+      <SedeSelect/>
       {tab==="grilla"&&(
         <>
           <div style={{width:1,height:24,background:border,margin:"0 2px"}}/>
@@ -950,8 +948,10 @@ function App(){
   const activeHours=useMemo(()=>ALL_HOURS.filter(h=>JORNADAS.some(j=>jornadasOn[j.id]&&j.range.includes(h))),[jornadasOn]);
 
   const filtered=classes.filter(c=>{
-    // En tab "docente" con un docente seleccionado, mostrar todas las sedes de ese docente
-    const ignorarSede = tab==="docente" && filterDocente && filterDocente!=="pendiente";
+    // Si sede está vacía ("Selecciona una sede") no filtrar por sede
+    // Tampoco filtrar por sede en tab "docente" con docente específico seleccionado
+    const sinSedeSeleccionada = !sede;
+    const ignorarSede = sinSedeSeleccionada || (tab==="docente" && filterDocente && filterDocente!=="pendiente");
     if(!ignorarSede && c.sede!==sede)return false;
 
     if(filterSemestre&&c.semestre!==filterSemestre)return false;
@@ -1153,7 +1153,7 @@ function App(){
 
       <div style={{display:"flex",background:headerBg,borderBottom:`1px solid ${border}`,padding:"0 16px",overflowX:"auto"}}>
         {[["grilla","Grilla Semanal"],["semestre","Por Semestre"],["docente","Por Docente"],["salon","Por Salón"],["gestion","Gestión"],["stats","Estadísticas"]].map(([t,l])=>(
-          <button key={t} onClick={()=>{setTab(t);setFilterDocente("");setFilterSemestre("");setFilterSalon("");if(t==="docente")setSede("");}} style={tabSt(tab===t)}>{l}</button>
+          <button key={t} onClick={()=>{setTab(t);setFilterDocente("");setFilterSemestre("");setFilterSalon("");}} style={tabSt(tab===t)}>{l}</button>
         ))}
       </div>
 
