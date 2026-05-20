@@ -273,7 +273,7 @@ function CalGrid({classes,dias,hours,border,headerBg,text,muted,onEdit,canEdit,c
                       const bi=timeToMin(b.horaInicio),bf=timeToMin(b.horaFin),hi=timeToMin(h);
                       return hi>=bi&&hi<bf;
                     }).map(b=>(
-                      <div key={b.id} title={b.motivo||"No disponible"} style={{position:"absolute",top:2,left:2,right:2,bottom:2,
+                      <div key={b.id} title={b.motivo||"No disponible"} style={{position:"absolute",top:2,left:2,right:2,height:SLOT_H-6,
                         background:"repeating-linear-gradient(45deg,#94a3b822,#94a3b822 4px,transparent 4px,transparent 10px)",
                         borderRadius:6,border:"1.5px dashed #94a3b8",zIndex:1,display:"flex",alignItems:"center",justifyContent:"center",padding:"4px 6px",boxSizing:"border-box"}}>
                         <span style={{fontSize:10,color:"#64748b",fontWeight:700,textAlign:"center"}}>🔒</span>
@@ -828,6 +828,7 @@ function App(){
         if(record.materias)  setMaterias(record.materias);
         if(record.salones)   setSalones(record.salones);
         if(record.sedes)     setSedes(record.sedes);
+        if(record.bloqueos)  setBloqueos(record.bloqueos);
         // Backup en localStorage
         try{localStorage.setItem("horarios_backup",JSON.stringify(record));}catch(_){}
       } else {
@@ -856,7 +857,7 @@ function App(){
     jsonbinSave(data).then(ok=>{
       if(ok) try{localStorage.setItem("horarios_backup",JSON.stringify(data));}catch(_){}
     }).finally(()=>setTimeout(()=>setSaving(false),400));
-  },[classes,docentes,materias,salones,sedes]);
+  },[classes,docentes,materias,salones,sedes,bloqueos]);
 
   const [tab,            setTab]           = useState("grilla");
   const [gTab,           setGTab]          = useState("docentes");
