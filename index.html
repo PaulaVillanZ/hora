@@ -948,43 +948,33 @@ function App(){
   const activeHours=useMemo(()=>ALL_HOURS.filter(h=>JORNADAS.some(j=>jornadasOn[j.id]&&j.range.includes(h))),[jornadasOn]);
 
   const filtered=classes.filter(c=>{
-    // Tab docente: si hay docente seleccionado, ignorar filtro de sede (mostrar todas sus sedes)
-    // Si no hay docente seleccionado en tab docente, no mostrar nada
-    if(tab==="docente"){
-      if(!filterDocente||filterDocente==="pendiente") return false; // nada hasta seleccionar docente
-      // con docente seleccionado: ignorar sede, mostrar todas
-    } else {
-      // otros tabs: filtrar por sede solo si hay sede seleccionada
-      if(sede && c.sede!==sede) return false;
+    // 1. Sede: solo filtrar si hay una sede seleccionada
+    if(sede && c.sede!==sede) return false;
+
+    // 2. Semestre
+    if(filterSemestre && c.semestre!==filterSemestre) return false;
+
+    // 3. Docente
+    if(filterDocente==="pendiente"){
+      if(c.docente && c.docente!=="pendiente") return false;
+    } else if(filterDocente){
+      if(c.docente!==filterDocente) return false;
     }
 
-    if(filterSemestre&&c.semestre!==filterSemestre)return false;
-
-    // Filtro docente: solo aplica en tabs docente y grilla
-    if(tab==="docente"||tab==="grilla"){
-      if(filterDocente==="pendiente"){
-        const sinDoc=!c.docente||c.docente==="pendiente";
-        if(!sinDoc)return false;
-      } else if(filterDocente){
-        if(c.docente!==filterDocente)return false;
-      }
+    // 4. Salón
+    if(filterSalon==="pendiente"){
+      if(c.salon && c.salon!=="pendiente") return false;
+    } else if(filterSalon){
+      if(c.salon!==filterSalon) return false;
     }
 
-    // Filtro salón: solo aplica en tabs salon y grilla
-    if(tab==="salon"||tab==="grilla"){
-      if(filterSalon==="pendiente"){
-        const sinSalon=!c.salon||c.salon==="pendiente";
-        if(!sinSalon)return false;
-      } else if(filterSalon){
-        if(c.salon!==filterSalon)return false;
-      }
-    }
-
+    // 5. Jornada (solo en grilla)
     if(tab==="grilla"){
       const jornadaReal=jornadaOf(c.horaInicio,c.dia)?.id||"manana";
       if(c.dia==="Sábado"||c.dia==="Domingo") return jornadasOn["noche"];
       if(!jornadasOn[jornadaReal]) return false;
     }
+
     return true;
   });
   const ann=cls=>({...cls,
