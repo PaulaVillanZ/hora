@@ -948,11 +948,15 @@ function App(){
   const activeHours=useMemo(()=>ALL_HOURS.filter(h=>JORNADAS.some(j=>jornadasOn[j.id]&&j.range.includes(h))),[jornadasOn]);
 
   const filtered=classes.filter(c=>{
-    // Si sede está vacía no filtrar por sede (mostrar todas)
-    // En tab "docente" sin sede seleccionada: mostrar todas las sedes del docente
-    const sinSede = !sede;
-    const ignorarSede = sinSede || (tab==="docente" && !sede);
-    if(!ignorarSede && c.sede!==sede)return false;
+    // Tab docente: si hay docente seleccionado, ignorar filtro de sede (mostrar todas sus sedes)
+    // Si no hay docente seleccionado en tab docente, no mostrar nada
+    if(tab==="docente"){
+      if(!filterDocente||filterDocente==="pendiente") return false; // nada hasta seleccionar docente
+      // con docente seleccionado: ignorar sede, mostrar todas
+    } else {
+      // otros tabs: filtrar por sede solo si hay sede seleccionada
+      if(sede && c.sede!==sede) return false;
+    }
 
     if(filterSemestre&&c.semestre!==filterSemestre)return false;
 
