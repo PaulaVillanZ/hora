@@ -87,20 +87,39 @@ const INIT_DOCENTES=[];
 const INIT_MATERIAS=[];
 const INIT_CLASSES=[];
 
-function exportRaw(rows,sheetName,fileName,sedes=[]){
+function exportRaw(rows,sheetName,fileName,sedes=[],titleLabel=""){
   const dias=DAYS.filter(d=>rows.some(r=>r.dia===d));
   if(dias.length===0){alert("No hay clases para exportar.");return;}
   const wb=XLSX.utils.book_new();
   const ws={};
   const merges=[];
 
-  // Header row
   const hFill={patternType:"solid",fgColor:{rgb:"FF1E3A5F"}};
   const hFont={bold:true,color:{rgb:"FFFFFFFF"},sz:20,name:"Arial"};
-  ws["A1"]={v:"Hora",t:"s",s:{fill:hFill,font:hFont,alignment:{horizontal:"center",vertical:"center"}}};
+
+  // Title row (row 1) - docente name spanning all columns
+  const titleRow = titleLabel ? 1 : 0;
+  if(titleLabel){
+    ws["A1"]={v:titleLabel,t:"s",s:{
+      fill:{patternType:"solid",fgColor:{rgb:"FF0F3460"}},
+      font:{bold:true,color:{rgb:"FFFFFFFF"},sz:24,name:"Arial"},
+      alignment:{horizontal:"center",vertical:"center"}
+    }};
+    // Merge title across all columns
+    merges.push({s:{r:0,c:0},e:{r:0,c:dias.length}});
+    // Fill merged cells
+    for(let i=1;i<=dias.length;i++){
+      const col=XLSX.utils.encode_col(i);
+      ws[`${col}1`]={v:"",t:"s",s:{fill:{patternType:"solid",fgColor:{rgb:"FF0F3460"}}}};
+    }
+  }
+
+  // Header row (row 2 if title, row 1 otherwise)
+  const headerRow = titleLabel ? 2 : 1;
+  ws[`A${headerRow}`]={v:"Hora",t:"s",s:{fill:hFill,font:hFont,alignment:{horizontal:"center",vertical:"center"}}};
   dias.forEach((d,i)=>{
     const col=XLSX.utils.encode_col(i+1);
-    ws[`${col}1`]={v:d,t:"s",s:{fill:hFill,font:hFont,alignment:{horizontal:"center",vertical:"center"}}};
+    ws[`${col}${headerRow}`]={v:d,t:"s",s:{fill:hFill,font:hFont,alignment:{horizontal:"center",vertical:"center"}}};
   });
 
   const jBg={"manana":"FFDBEAFE","tarde":"FFFEF3C7","noche":"FFEDE9FE"};
@@ -110,7 +129,6 @@ function exportRaw(rows,sheetName,fileName,sedes=[]){
   // Build sede color map from actual sedes data
   const sedeColorMap={};
   sedes.forEach(s=>{
-    // Convert #RRGGBB to FFRRGGBB
     const hex=s.color.replace("#","");
     sedeColorMap[s.id]="FF"+hex.toUpperCase();
   });
@@ -119,7 +137,7 @@ function exportRaw(rows,sheetName,fileName,sedes=[]){
   const occupied={};
 
   ALL_HOURS.forEach((h,ri)=>{
-    const rowNum=ri+2;
+    const rowNum=ri+headerRow+1;
     const jId=timeToMin(h)>=18*60?"noche":timeToMin(h)>=12*60?"tarde":"manana";
 
     // Hour label cell
@@ -179,8 +197,8 @@ ${cls.horaInicio}–${cls.horaFin} · Gr.${cls.grupo}`;
 
   ws["!merges"]=merges;
   ws["!cols"]=[{wch:10},...dias.map(()=>({wch:40}))];
-  ws["!rows"]=[{hpt:40},...ALL_HOURS.map(()=>({hpt:90}))];
-  ws["!ref"]=XLSX.utils.encode_range({s:{r:0,c:0},e:{r:ALL_HOURS.length,c:dias.length}});
+  ws["!rows"]=titleLabel?[{hpt:50},{hpt:40},...ALL_HOURS.map(()=>({hpt:90}))]:[{hpt:40},...ALL_HOURS.map(()=>({hpt:90}))];
+  ws["!ref"]=XLSX.utils.encode_range({s:{r:0,c:0},e:{r:ALL_HOURS.length+headerRow,c:dias.length}});
   XLSX.utils.book_append_sheet(wb,ws,sheetName.slice(0,31));
   XLSX.writeFile(wb,fileName);
 }
@@ -1114,7 +1132,7 @@ function App(){
             sedeName.replace(/\s+/g,"_");
           return(<>
             <div style={{display:"flex",justifyContent:"flex-end",marginBottom:10}}>
-              <button onClick={()=>exportRaw(enriched,xlsLabel,`Horario_${xlsLabel}.xlsx`,sedes)}
+              <button onClick={()=>exportRaw(enriched,xlsLabel,`Horario_${xlsLabel}.xlsx`,sedes,tab==="docente"&&filterDocente&&filterDocente!=="pendiente"?docentes.find(d=>d.id===filterDocente)?.name||"":"")}
                 style={{display:"flex",alignItems:"center",gap:6,padding:"6px 16px",borderRadius:8,border:"2px solid #0F6E56",background:"#0F6E56",color:"#fff",cursor:"pointer",fontSize:13,fontWeight:600}}>
                 ⬇ Descargar .xlsx
               </button>
