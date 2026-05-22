@@ -266,7 +266,7 @@ function PillButtons({options,value,onChange,color,muted}){
   );
 }
 
-function CalGrid({classes,dias,hours,border,headerBg,text,muted,onEdit,canEdit,colorFn,dragId,setDragId,dropTarget,setDropTarget,onDrop,dropValid,bloqueos=[]}){
+function CalGrid({classes,dias,hours,border,headerBg,text,muted,onEdit,canEdit,colorFn,dragId,setDragId,dropTarget,setDropTarget,onDrop,dropValid,bloqueos=[],filterDocente=""}){
   return(
     <div style={{overflowX:"auto",userSelect:"none"}}>
       <table style={{borderCollapse:"collapse",tableLayout:"fixed",width:"100%",minWidth:720}}>
@@ -292,7 +292,8 @@ function CalGrid({classes,dias,hours,border,headerBg,text,muted,onEdit,canEdit,c
                     onDragOver={e=>{e.preventDefault();setDropTarget&&setDropTarget({dia:d,hora:h});}}
                     onDragLeave={()=>setDropTarget&&setDropTarget(null)}
                     onDrop={()=>onDrop&&onDrop(d,h)}>
-                    {bloqueos&&bloqueos.filter(b=>{
+                    {bloqueos&&filterDocente&&filterDocente!=="pendiente"&&bloqueos.filter(b=>{
+                      if(b.docente!==filterDocente)return false;
                       const diasB=b.dias||[b.dia];
                       if(!diasB.includes(d))return false;
                       const bi=timeToMin(b.horaInicio),bf=timeToMin(b.horaFin),hi=timeToMin(h);
@@ -366,7 +367,7 @@ function MatModal({editMat,onClose,onSave,onDelete,classes,surface,border,text,m
   );
 }
 
-function ClaseModal({initialForm,onSave,onDelete,onClose,editId,classes,docentes,sedes,salones,materias,surface,border,text,muted}){
+function ClaseModal({initialForm,onSave,onDelete,onClose,editId,classes,docentes,sedes,salones,materias,surface,border,text,muted,bloqueos=[]}){
   const [form,setForm]=useState({...initialForm});
   const [val,setVal]=useState(null);
 
@@ -393,11 +394,11 @@ function ClaseModal({initialForm,onSave,onDelete,onClose,editId,classes,docentes
       nf.jornada=jornadaOf(v,nf.dia)?.id||"manana";
     }
     setForm(nf);
-    setVal(validateConflicts(nf,classes,editId,docentes));
+    setVal(validateConflicts(nf,classes,editId,docentes,bloqueos));
   };
 
   const save=()=>{
-    const r=validateConflicts(form,classes,editId,docentes);
+    const r=validateConflicts(form,classes,editId,docentes,bloqueos);
     if(!r.ok){setVal(r);return;}
     onSave(form);
   };
@@ -961,7 +962,7 @@ function App(){
   const openNewClase=()=>{if(!canEdit)return;setEditClaseId(null);setClaseForm(defaultForm());setShowClase(true);};
   const openEditClase=cls=>{if(!canEdit)return;setEditClaseId(cls.id);setClaseForm({materia:cls.materia,semestre:cls.semestre,jornada:cls.jornada,grupo:cls.grupo,docente:cls.docente,sede:cls.sede,salon:cls.salon,dia:cls.dia,horaInicio:cls.horaInicio,horaFin:cls.horaFin});setShowClase(true);};
   const saveClase=f=>{
-    const r=validateConflicts(f,classes,editClaseId,docentes);
+    const r=validateConflicts(f,classes,editClaseId,docentes,bloqueos);
     if(!r.ok){showToast(r.msg,"danger");return;}
     if(editClaseId){setClasses(cs=>cs.map(c=>c.id===editClaseId?{...f,id:editClaseId}:c));showToast("Clase actualizada.");}
     else{setClasses(cs=>[...cs,{...f,id:"c"+Date.now()}]);showToast("Clase creada.");}
@@ -1022,7 +1023,7 @@ function App(){
     if(!dragId)return;const cls=classes.find(c=>c.id===dragId);if(!cls)return;
     const dur=timeToMin(cls.horaFin)-timeToMin(cls.horaInicio);
     const upd={...cls,dia,horaInicio:hora,horaFin:minToTime(timeToMin(hora)+dur)};
-    const r=validateConflicts(upd,classes,dragId,docentes);
+    const r=validateConflicts(upd,classes,dragId,docentes,bloqueos);
     if(!r.ok)showToast(r.msg,"danger");
     else{setClasses(cs=>cs.map(c=>c.id===dragId?upd:c));showToast("Clase movida.");}
     setDragId(null);setDropTarget(null);
@@ -1147,7 +1148,8 @@ function App(){
               setDropTarget={tab==="grilla"?setDropTarget:undefined}
               onDrop={tab==="grilla"?handleDrop:undefined}
               dropValid={tab==="grilla"?dropValid:undefined}
-            bloqueos={bloqueos}/>
+            bloqueos={bloqueos}
+            filterDocente={filterDocente}/>
           </>);
         })()}
         {tab==="gestion"&&(
@@ -1207,7 +1209,7 @@ function App(){
       {showBloqueo&&<BloqueoModal
         docentes={docentes} onSave={saveBloqueo} onClose={()=>setShowBloqueo(false)}
         surface={surface} border={border} text={text} muted={muted}/>}
-      {showClase&&<ClaseModal initialForm={claseForm} onSave={saveClase} onDelete={delClase} onClose={()=>setShowClase(false)} editId={editClaseId} classes={classes} docentes={docentes} sedes={sedes} salones={salones} materias={materias} surface={surface} border={border} text={text} muted={muted}/>}
+      {showClase&&<ClaseModal initialForm={claseForm} onSave={saveClase} onDelete={delClase} onClose={()=>setShowClase(false)} editId={editClaseId} classes={classes} docentes={docentes} sedes={sedes} salones={salones} materias={materias} surface={surface} border={border} text={text} muted={muted} bloqueos={bloqueos}/>}
 
       {showDoc&&(
         <Overlay>
