@@ -4,40 +4,34 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>Horarios Audiovisuales</title>
-<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-<script src="https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script src="https://unpkg.com/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
 <style>*{box-sizing:border-box;margin:0;padding:0;}body{font-family:system-ui,sans-serif;}</style>
 </head>
 <body>
 <div id="root"></div>
-<script>
-const {
-  useState,
-  useMemo,
-  useEffect,
-  useRef
-} = React;
+<script type="text/babel">
+const { useState, useMemo, useEffect, useRef } = React;
 
 // ── JSONBin.io storage ──
 const JSONBIN_KEY = "$2a$10$qs14fIdS2mWQr5TxV6DEP.3cyJR2tvsRiidPvdO7sVGWsrw0l1Hzm";
 const JSONBIN_BASE = "https://api.jsonbin.io/v3";
 let BIN_ID = "6a07a81aadc21f119aa7f215";
+
 async function jsonbinLoad() {
   if (!BIN_ID) return null;
   try {
     const r = await fetch(`${JSONBIN_BASE}/b/${BIN_ID}/latest`, {
-      headers: {
-        "X-Master-Key": JSONBIN_KEY
-      }
+      headers: { "X-Master-Key": JSONBIN_KEY }
     });
     if (!r.ok) return null;
     const d = await r.json();
     return d.record || null;
-  } catch (_) {
-    return null;
-  }
+  } catch(_) { return null; }
 }
+
 async function jsonbinSave(data) {
   if (!BIN_ID) {
     // Crear bin nuevo
@@ -56,9 +50,7 @@ async function jsonbinSave(data) {
       const d = await r.json();
       BIN_ID = d.metadata.id;
       return true;
-    } catch (_) {
-      return false;
-    }
+    } catch(_) { return false; }
   } else {
     try {
       const r = await fetch(`${JSONBIN_BASE}/b/${BIN_ID}`, {
@@ -70,2847 +62,1211 @@ async function jsonbinSave(data) {
         body: JSON.stringify(data)
       });
       return r.ok;
-    } catch (_) {
-      return false;
-    }
+    } catch(_) { return false; }
   }
 }
-const DAYS = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
-const ALL_HOURS = ["06:00", "07:00", "08:00", "09:00", "10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "16:00", "17:00", "18:00", "19:00", "20:00", "21:00", "22:00"];
-const SEMESTRES = ["1", "2", "3", "4", "5", "6", "7", "8"];
-const SLOT_H = 56,
-  HEADER_H = 36,
-  HOUR_W = 64;
-const DOC_COLORS = ["#185FA5", "#0F6E56", "#7F77DD", "#D85A30", "#D4537E", "#BA7517", "#0369a1", "#166534", "#7c3aed", "#b45309"];
-const SEDE_COLORS = ["#185FA5", "#0F6E56", "#7F77DD", "#D85A30", "#D4537E", "#BA7517", "#0369a1", "#166534"];
-const ROLES = {
-  admin: "Administrador",
-  consulta: "Consulta"
-};
-const ROLE_PASSWORDS = {
-  admin: "admin123",
-  consulta: "consulta000"
-};
-const JORNADAS = [{
-  id: "manana",
-  label: "Mañana",
-  range: ["06:00", "07:00", "08:00", "09:00", "10:00", "11:00"],
-  color: "#0369a1",
-  bg: "#dbeafe"
-}, {
-  id: "tarde",
-  label: "Tarde",
-  range: ["12:00", "13:00", "14:00", "15:00", "16:00", "17:00"],
-  color: "#b45309",
-  bg: "#fef3c7"
-}, {
-  id: "noche",
-  label: "Noche",
-  range: ["18:00", "19:00", "20:00", "21:00", "22:00"],
-  color: "#7c3aed",
-  bg: "#ede9fe"
-}];
-const GRUPOS = ["A", "B", "C"];
-const INIT_SEDES = [];
-const INIT_SALONES = {};
-const INIT_DOCENTES = [];
-const INIT_MATERIAS = [];
-const INIT_CLASSES = [];
-function exportRaw(rows, sheetName, fileName) {
-  const dias = DAYS.filter(d => rows.some(r => r.dia === d));
-  if (dias.length === 0) {
-    alert("No hay clases para exportar.");
-    return;
-  }
-  const wb = XLSX.utils.book_new();
-  const ws = {};
-  const merges = [];
 
-  // Header row
-  const hFill = {
-    patternType: "solid",
-    fgColor: {
-      rgb: "FF1E3A5F"
+const DAYS = ["Lunes","Martes","Miércoles","Jueves","Viernes","Sábado","Domingo"];
+const ALL_HOURS = ["06:00","07:00","08:00","09:00","10:00","11:00","12:00","13:00","14:00","15:00","16:00","17:00","18:00","19:00","20:00","21:00","22:00"];
+const SEMESTRES = ["1","2","3","4","5","6","7","8"];
+const SLOT_H=56, HEADER_H=36, HOUR_W=64;
+const DOC_COLORS=["#185FA5","#0F6E56","#7F77DD","#D85A30","#D4537E","#BA7517","#0369a1","#166534","#7c3aed","#b45309"];
+const SEDE_COLORS=["#185FA5","#0F6E56","#7F77DD","#D85A30","#D4537E","#BA7517","#0369a1","#166534"];
+const ROLES={admin:"Administrador",consulta:"Consulta"};
+const ROLE_PASSWORDS={admin:"admin123",consulta:"consulta000"};
+const JORNADAS=[
+  {id:"manana",label:"Mañana",range:["06:00","07:00","08:00","09:00","10:00","11:00"],color:"#0369a1",bg:"#dbeafe"},
+  {id:"tarde", label:"Tarde", range:["12:00","13:00","14:00","15:00","16:00","17:00"],color:"#b45309",bg:"#fef3c7"},
+  {id:"noche", label:"Noche", range:["18:00","19:00","20:00","21:00","22:00"],        color:"#7c3aed",bg:"#ede9fe"},
+];
+const GRUPOS=["A","B","C"];
+
+const INIT_SEDES=[];
+const INIT_SALONES={};
+const INIT_DOCENTES=[];
+const INIT_MATERIAS=[];
+const INIT_CLASSES=[];
+
+function exportRaw(rows,sheetName,fileName,sedes=[],titleLabel=""){
+  const dias=DAYS.filter(d=>rows.some(r=>r.dia===d));
+  if(dias.length===0){alert("No hay clases para exportar.");return;}
+  const wb=XLSX.utils.book_new();
+  const ws={};
+  const merges=[];
+
+  const hFill={patternType:"solid",fgColor:{rgb:"FF1E3A5F"}};
+  const hFont={bold:true,color:{rgb:"FFFFFFFF"},sz:20,name:"Arial"};
+
+  // Title row (row 1) - docente name spanning all columns
+  const titleRow = titleLabel ? 1 : 0;
+  if(titleLabel){
+    ws["A1"]={v:titleLabel,t:"s",s:{
+      fill:{patternType:"solid",fgColor:{rgb:"FF0F3460"}},
+      font:{bold:true,color:{rgb:"FFFFFFFF"},sz:24,name:"Arial"},
+      alignment:{horizontal:"center",vertical:"center"}
+    }};
+    // Merge title across all columns
+    merges.push({s:{r:0,c:0},e:{r:0,c:dias.length}});
+    // Fill merged cells
+    for(let i=1;i<=dias.length;i++){
+      const col=XLSX.utils.encode_col(i);
+      ws[`${col}1`]={v:"",t:"s",s:{fill:{patternType:"solid",fgColor:{rgb:"FF0F3460"}}}};
     }
-  };
-  const hFont = {
-    bold: true,
-    color: {
-      rgb: "FFFFFFFF"
-    },
-    sz: 11
-  };
-  ws["A1"] = {
-    v: "Hora",
-    t: "s",
-    s: {
-      fill: hFill,
-      font: hFont,
-      alignment: {
-        horizontal: "center",
-        vertical: "center"
-      }
-    }
-  };
-  dias.forEach((d, i) => {
-    const col = XLSX.utils.encode_col(i + 1);
-    ws[`${col}1`] = {
-      v: d,
-      t: "s",
-      s: {
-        fill: hFill,
-        font: hFont,
-        alignment: {
-          horizontal: "center",
-          vertical: "center"
-        }
-      }
-    };
+  }
+
+  // Header row (row 2 if title, row 1 otherwise)
+  const headerRow = titleLabel ? 2 : 1;
+  ws[`A${headerRow}`]={v:"Hora",t:"s",s:{fill:hFill,font:hFont,alignment:{horizontal:"center",vertical:"center"}}};
+  dias.forEach((d,i)=>{
+    const col=XLSX.utils.encode_col(i+1);
+    ws[`${col}${headerRow}`]={v:d,t:"s",s:{fill:hFill,font:hFont,alignment:{horizontal:"center",vertical:"center"}}};
   });
-  const jBg = {
-    "manana": "FFDBEAFE",
-    "tarde": "FFFEF3C7",
-    "noche": "FFEDE9FE"
-  };
-  const jFg = {
-    "manana": "FF0369A1",
-    "tarde": "FFB45309",
-    "noche": "FF7C3AED"
-  };
-  const sedeColors = ["FF185FA5", "FF0F6E56", "FF7F77DD", "FFD85A30", "FF9333EA", "FFE11D48"];
-  const brd = {
-    top: {
-      style: "thin",
-      color: {
-        rgb: "FFCBD5E1"
-      }
-    },
-    bottom: {
-      style: "thin",
-      color: {
-        rgb: "FFCBD5E1"
-      }
-    },
-    left: {
-      style: "thin",
-      color: {
-        rgb: "FFCBD5E1"
-      }
-    },
-    right: {
-      style: "thin",
-      color: {
-        rgb: "FFCBD5E1"
-      }
-    }
-  };
+
+  const jBg={"manana":"FFDBEAFE","tarde":"FFFEF3C7","noche":"FFEDE9FE"};
+  const jFg={"manana":"FF0369A1","tarde":"FFB45309","noche":"FF7C3AED"};
+  const brd={top:{style:"thin",color:{rgb:"FFCBD5E1"}},bottom:{style:"thin",color:{rgb:"FFCBD5E1"}},left:{style:"thin",color:{rgb:"FFCBD5E1"}},right:{style:"thin",color:{rgb:"FFCBD5E1"}}};
+
+  // Build sede color map from actual sedes data
+  const sedeColorMap={};
+  sedes.forEach(s=>{
+    const hex=s.color.replace("#","");
+    sedeColorMap[s.id]="FF"+hex.toUpperCase();
+  });
 
   // Track which cells are already filled by a merged block
-  const occupied = {};
-  ALL_HOURS.forEach((h, ri) => {
-    const rowNum = ri + 2;
-    const jId = timeToMin(h) >= 18 * 60 ? "noche" : timeToMin(h) >= 12 * 60 ? "tarde" : "manana";
+  const occupied={};
+
+  ALL_HOURS.forEach((h,ri)=>{
+    const rowNum=ri+headerRow+1;
+    const jId=timeToMin(h)>=18*60?"noche":timeToMin(h)>=12*60?"tarde":"manana";
 
     // Hour label cell
-    ws[`A${rowNum}`] = {
-      v: h,
-      t: "s",
-      s: {
-        fill: {
-          patternType: "solid",
-          fgColor: {
-            rgb: jBg[jId]
-          }
-        },
-        font: {
-          bold: true,
-          color: {
-            rgb: jFg[jId]
-          },
-          sz: 10
-        },
-        alignment: {
-          horizontal: "center",
-          vertical: "center"
-        },
-        border: brd
-      }
-    };
-    dias.forEach((d, ci) => {
-      const col = XLSX.utils.encode_col(ci + 1);
-      const cellRef = `${col}${rowNum}`;
-      const isWeekend = d === "Sábado" || d === "Domingo";
-      const cellJid = isWeekend ? "noche" : jId;
-      const cellBg = jBg[cellJid];
-      if (occupied[cellRef]) {
-        // Cell covered by a merged block above — write empty with same bg
-        ws[cellRef] = {
-          v: "",
-          t: "s",
-          s: {
-            fill: {
-              patternType: "solid",
-              fgColor: {
-                rgb: cellBg
-              }
-            },
-            border: brd
-          }
-        };
+    ws[`A${rowNum}`]={v:h,t:"s",s:{
+      fill:{patternType:"solid",fgColor:{rgb:jBg[jId]}},
+      font:{bold:true,color:{rgb:jFg[jId]},sz:20,name:"Arial"},
+      alignment:{horizontal:"center",vertical:"center"},
+      border:brd
+    }};
+
+    dias.forEach((d,ci)=>{
+      const col=XLSX.utils.encode_col(ci+1);
+      const cellRef=`${col}${rowNum}`;
+      const isWeekend=d==="Sábado"||d==="Domingo";
+      const cellJid=isWeekend?"noche":jId;
+      const cellBg=jBg[cellJid];
+
+      if(occupied[cellRef]){
+        ws[cellRef]={v:"",t:"s",s:{fill:{patternType:"solid",fgColor:{rgb:cellBg}},border:brd}};
         return;
       }
 
-      // Find class starting at this exact hour
-      const cls = rows.find(r => r.dia === d && timeToMin(r.horaInicio) === timeToMin(h));
-      if (cls) {
-        const startIdx = ALL_HOURS.indexOf(h);
-        const endIdx = ALL_HOURS.findIndex(hh => timeToMin(hh) >= timeToMin(cls.horaFin));
-        const spanRows = endIdx === -1 ? ALL_HOURS.length - startIdx : endIdx - startIdx;
+      const cls=rows.find(r=>r.dia===d&&timeToMin(r.horaInicio)===timeToMin(h));
+      if(cls){
+        const startIdx=ALL_HOURS.indexOf(h);
+        const endIdx=ALL_HOURS.findIndex(hh=>timeToMin(hh)>=timeToMin(cls.horaFin));
+        const spanRows=endIdx===-1?ALL_HOURS.length-startIdx:endIdx-startIdx;
 
-        // Color block like the app — use sede color as block bg
-        const colorIdx = ["sede1778887386113", "sede1778887985762", "sede1778887992181", "sede1778887998024"].indexOf(cls.sede);
-        const blockColor = colorIdx >= 0 ? sedeColors[colorIdx] : "FF185FA5";
-        const label = `${cls.materia}\n${cls.docente_name || cls.docente}\n${cls.horaInicio}–${cls.horaFin} · Gr.${cls.grupo}`;
-        ws[cellRef] = {
-          v: label,
-          t: "s",
-          s: {
-            fill: {
-              patternType: "solid",
-              fgColor: {
-                rgb: blockColor
-              }
-            },
-            font: {
-              bold: true,
-              color: {
-                rgb: "FFFFFFFF"
-              },
-              sz: 9
-            },
-            alignment: {
-              horizontal: "left",
-              vertical: "top",
-              wrapText: true
-            },
-            border: brd
-          }
-        };
-        if (spanRows > 1) {
-          merges.push({
-            s: {
-              r: rowNum - 1,
-              c: ci + 1
-            },
-            e: {
-              r: rowNum - 1 + spanRows - 1,
-              c: ci + 1
-            }
-          });
-          for (let k = 1; k < spanRows; k++) {
-            const futureRow = rowNum + k;
-            const futureCol = XLSX.utils.encode_col(ci + 1);
-            occupied[`${futureCol}${futureRow}`] = true;
+        // Use the actual sede color from sedes data
+        const blockColor=sedeColorMap[cls.sede]||"FF185FA5";
+        const sedeName=sedes.find(s=>s.id===cls.sede)?.name||cls.sede;
+
+        const label=`${cls.materia}
+${cls.docente_name||cls.docente}
+${sedeName} · ${cls.salon}
+${cls.horaInicio}–${cls.horaFin} · Gr.${cls.grupo}`;
+        ws[cellRef]={v:label,t:"s",s:{
+          fill:{patternType:"solid",fgColor:{rgb:blockColor}},
+          font:{bold:true,color:{rgb:"FFFFFFFF"},sz:20,name:"Arial"},
+          alignment:{horizontal:"left",vertical:"top",wrapText:true},
+          border:brd
+        }};
+
+        if(spanRows>1){
+          merges.push({s:{r:rowNum-1,c:ci+1},e:{r:rowNum-1+spanRows-1,c:ci+1}});
+          for(let k=1;k<spanRows;k++){
+            const futureRow=rowNum+k;
+            const futureCol=XLSX.utils.encode_col(ci+1);
+            occupied[`${futureCol}${futureRow}`]=true;
           }
         }
       } else {
-        // Empty cell
-        ws[cellRef] = {
-          v: "",
-          t: "s",
-          s: {
-            fill: {
-              patternType: "solid",
-              fgColor: {
-                rgb: cellBg
-              }
-            },
-            border: brd
-          }
-        };
+        ws[cellRef]={v:"",t:"s",s:{fill:{patternType:"solid",fgColor:{rgb:cellBg}},border:brd}};
       }
     });
   });
-  ws["!merges"] = merges;
-  ws["!cols"] = [{
-    wch: 7
-  }, ...dias.map(() => ({
-    wch: 28
-  }))];
-  ws["!rows"] = [{
-    hpt: 20
-  }, ...ALL_HOURS.map(() => ({
-    hpt: 40
-  }))];
-  ws["!ref"] = XLSX.utils.encode_range({
-    s: {
-      r: 0,
-      c: 0
-    },
-    e: {
-      r: ALL_HOURS.length,
-      c: dias.length
-    }
-  });
-  XLSX.utils.book_append_sheet(wb, ws, sheetName.slice(0, 31));
-  XLSX.writeFile(wb, fileName);
+
+  ws["!merges"]=merges;
+  ws["!cols"]=[{wch:10},...dias.map(()=>({wch:40}))];
+  ws["!rows"]=titleLabel?[{hpt:50},{hpt:40},...ALL_HOURS.map(()=>({hpt:90}))]:[{hpt:40},...ALL_HOURS.map(()=>({hpt:90}))];
+  ws["!ref"]=XLSX.utils.encode_range({s:{r:0,c:0},e:{r:ALL_HOURS.length+headerRow,c:dias.length}});
+  XLSX.utils.book_append_sheet(wb,ws,sheetName.slice(0,31));
+  XLSX.writeFile(wb,fileName);
 }
-function timeToMin(t) {
-  const [h, m] = t.split(":").map(Number);
-  return h * 60 + m;
+
+function timeToMin(t){const[h,m]=t.split(":").map(Number);return h*60+m;}
+function minToTime(m){return`${String(Math.floor(m/60)).padStart(2,"0")}:${String(m%60).padStart(2,"0")}`;}
+function jornadaOf(h,dia){
+  if(dia==="Sábado"||dia==="Domingo")return JORNADAS[2];
+  const m=timeToMin(h);if(m>=18*60)return JORNADAS[2];if(m>=12*60)return JORNADAS[1];return JORNADAS[0];
 }
-function minToTime(m) {
-  return `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
-}
-function jornadaOf(h, dia) {
-  if (dia === "Sábado" || dia === "Domingo") return JORNADAS[2];
-  const m = timeToMin(h);
-  if (m >= 18 * 60) return JORNADAS[2];
-  if (m >= 12 * 60) return JORNADAS[1];
-  return JORNADAS[0];
-}
-function jornadaColor(h, dia) {
-  return jornadaOf(h, dia)?.color || "#64748b";
-}
-function jornadaBg(h, dia) {
-  return jornadaOf(h, dia)?.bg || "transparent";
-}
-function getDocColor(id, docs) {
-  const i = docs.findIndex(d => d.id === id);
-  return DOC_COLORS[i % DOC_COLORS.length] || "#888";
-}
-function docHours(id, cls) {
-  return cls.filter(c => c.docente === id).reduce((a, c) => a + (timeToMin(c.horaFin) - timeToMin(c.horaInicio)) / 60, 0);
-}
-function validateConflicts(cls, all, editId, docentes) {
-  const others = all.filter(c => c.id !== editId);
-  const si = timeToMin(cls.horaInicio),
-    sf = timeToMin(cls.horaFin);
-  if (sf <= si) return {
-    ok: false,
-    msg: "La hora fin debe ser posterior a la hora inicio."
-  };
-  for (const c of others) {
-    if (c.dia !== cls.dia) continue;
-    const ci = timeToMin(c.horaInicio),
-      cf = timeToMin(c.horaFin);
-    if (si >= cf || sf <= ci) continue;
-    if (c.docente === cls.docente && cls.docente !== "pendiente") {
-      const dn = docentes.find(d => d.id === cls.docente)?.name || cls.docente;
-      if (c.sede !== cls.sede) return {
-        ok: false,
-        msg: `Cruce entre sedes: ${dn} ya tiene "${c.materia}" en otra sede el ${c.dia} de ${c.horaInicio} a ${c.horaFin}.`
-      };
-      return {
-        ok: false,
-        msg: `Conflicto de docente: ${dn} ya tiene "${c.materia}" el ${c.dia} de ${c.horaInicio} a ${c.horaFin}.`
-      };
-    }
-    if (c.salon === cls.salon && c.sede === cls.sede && cls.salon !== "pendiente") return {
-      ok: false,
-      msg: `Salón ocupado: ${cls.salon} tiene "${c.materia}" (Grupo ${c.grupo}) el ${c.dia} de ${c.horaInicio} a ${c.horaFin}.`
-    };
-    if (c.grupo === cls.grupo && c.semestre === cls.semestre && c.sede === cls.sede) return {
-      ok: false,
-      msg: `Conflicto de grupo ${cls.grupo} (Sem. ${cls.semestre}): ya tiene "${c.materia}" el ${c.dia} de ${c.horaInicio} a ${c.horaFin}.`
-    };
-  }
-  return {
-    ok: true
-  };
-}
-const Overlay = ({
-  children
-}) => /*#__PURE__*/React.createElement("div", {
-  style: {
-    position: "fixed",
-    inset: 0,
-    background: "rgba(0,0,0,.5)",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    zIndex: 1000
-  }
-}, children);
-const Lbl = ({
-  t,
-  muted
-}) => /*#__PURE__*/React.createElement("label", {
-  style: {
-    fontSize: 12,
-    color: muted,
-    display: "block",
-    marginBottom: 4
-  }
-}, t);
-const inp = (s, b, t) => ({
-  width: "100%",
-  padding: "7px 10px",
-  borderRadius: 6,
-  border: `1px solid ${b}`,
-  background: s,
-  color: t,
-  fontSize: 13,
-  boxSizing: "border-box"
-});
-const btn = (bg, col, brd) => ({
-  background: bg,
-  color: col,
-  border: brd ? `1px solid ${brd}` : "none",
-  borderRadius: 7,
-  padding: "7px 14px",
-  cursor: "pointer",
-  fontSize: 13
-});
-function PillButtons({
-  options,
-  value,
-  onChange,
-  color,
-  muted
-}) {
-  return /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: "flex",
-      gap: 6,
-      flexWrap: "wrap"
-    }
-  }, options.map(o => {
-    const active = value === o.value;
-    return /*#__PURE__*/React.createElement("button", {
-      key: o.value,
-      onClick: () => onChange(active ? "" : o.value),
-      style: {
-        padding: "5px 14px",
-        borderRadius: 20,
-        border: `2px solid ${active ? color : "#cbd5e1"}`,
-        background: active ? color : "transparent",
-        color: active ? "#fff" : muted,
-        fontWeight: active ? 600 : 400,
-        cursor: "pointer",
-        fontSize: 12
+function jornadaColor(h,dia){return jornadaOf(h,dia)?.color||"#64748b";}
+function jornadaBg(h,dia){return jornadaOf(h,dia)?.bg||"transparent";}
+function getDocColor(id,docs){const i=docs.findIndex(d=>d.id===id);return DOC_COLORS[i%DOC_COLORS.length]||"#888";}
+function docHours(id,cls){return cls.filter(c=>c.docente===id).reduce((a,c)=>a+(timeToMin(c.horaFin)-timeToMin(c.horaInicio))/60,0);}
+
+function validateConflicts(cls,all,editId,docentes,bloqueos=[]){
+  const others=all.filter(c=>c.id!==editId);
+  const si=timeToMin(cls.horaInicio),sf=timeToMin(cls.horaFin);
+  if(sf<=si)return{ok:false,msg:"La hora fin debe ser posterior a la hora inicio."};
+  if(cls.docente&&cls.docente!=="pendiente"){
+    for(const b of bloqueos){
+      if(b.docente!==cls.docente)continue;
+      const diasB=b.dias||[b.dia];
+      if(!diasB.includes(cls.dia))continue;
+      const bi=timeToMin(b.horaInicio),bf=timeToMin(b.horaFin);
+      if(si<bf&&sf>bi){
+        const dn=docentes.find(d=>d.id===cls.docente)?.name||cls.docente;
+        return{ok:false,msg:`Docente bloqueado: ${dn} no está disponible el ${cls.dia} de ${b.horaInicio} a ${b.horaFin}.`};
       }
-    }, o.label);
-  }));
+    }
+  }
+  for(const c of others){
+    if(c.dia!==cls.dia)continue;
+    const ci=timeToMin(c.horaInicio),cf=timeToMin(c.horaFin);
+    if(si>=cf||sf<=ci)continue;
+    if(c.docente===cls.docente&&cls.docente!=="pendiente"){
+      const dn=docentes.find(d=>d.id===cls.docente)?.name||cls.docente;
+      if(c.sede!==cls.sede)return{ok:false,msg:`Cruce entre sedes: ${dn} ya tiene "${c.materia}" en otra sede el ${c.dia} de ${c.horaInicio} a ${c.horaFin}.`};
+      return{ok:false,msg:`Conflicto de docente: ${dn} ya tiene "${c.materia}" el ${c.dia} de ${c.horaInicio} a ${c.horaFin}.`};
+    }
+    if(c.salon===cls.salon&&c.sede===cls.sede&&cls.salon!=="pendiente")return{ok:false,msg:`Salón ocupado: ${cls.salon} tiene "${c.materia}" (Grupo ${c.grupo}) el ${c.dia} de ${c.horaInicio} a ${c.horaFin}.`};
+    if(c.grupo===cls.grupo&&c.semestre===cls.semestre&&c.sede===cls.sede)return{ok:false,msg:`Conflicto de grupo ${cls.grupo} (Sem. ${cls.semestre}): ya tiene "${c.materia}" el ${c.dia} de ${c.horaInicio} a ${c.horaFin}.`};
+  }
+  return{ok:true};
 }
-function CalGrid({
-  classes,
-  dias,
-  hours,
-  border,
-  headerBg,
-  text,
-  muted,
-  onEdit,
-  canEdit,
-  colorFn,
-  dragId,
-  setDragId,
-  dropTarget,
-  setDropTarget,
-  onDrop,
-  dropValid
-}) {
-  return /*#__PURE__*/React.createElement("div", {
-    style: {
-      overflowX: "auto",
-      userSelect: "none"
-    }
-  }, /*#__PURE__*/React.createElement("table", {
-    style: {
-      borderCollapse: "collapse",
-      tableLayout: "fixed",
-      width: "100%",
-      minWidth: 720
-    }
-  }, /*#__PURE__*/React.createElement("thead", null, /*#__PURE__*/React.createElement("tr", null, /*#__PURE__*/React.createElement("th", {
-    style: {
-      width: HOUR_W,
-      background: headerBg,
-      border: `1px solid ${border}`,
-      height: HEADER_H,
-      fontSize: 11,
-      color: muted,
-      fontWeight: 500,
-      textAlign: "center"
-    }
-  }, "Hora"), dias.map(d => /*#__PURE__*/React.createElement("th", {
-    key: d,
-    style: {
-      background: headerBg,
-      border: `1px solid ${border}`,
-      height: HEADER_H,
-      fontSize: 12,
-      color: text,
-      fontWeight: 700,
-      textAlign: "center"
-    }
-  }, d)))), /*#__PURE__*/React.createElement("tbody", null, hours.map(h => /*#__PURE__*/React.createElement("tr", {
-    key: h,
-    style: {
-      height: SLOT_H
-    }
-  }, /*#__PURE__*/React.createElement("td", {
-    style: {
-      background: jornadaBg(h),
-      border: `1px solid ${border}`,
-      textAlign: "center",
-      verticalAlign: "middle",
-      width: HOUR_W,
-      padding: 0
-    }
-  }, /*#__PURE__*/React.createElement("span", {
-    style: {
-      fontSize: 11,
-      fontWeight: 600,
-      color: jornadaColor(h)
-    }
-  }, h)), dias.map(d => {
-    const starting = classes.filter(c => c.dia === d && timeToMin(c.horaInicio) === timeToMin(h));
-    const isDT = dropTarget && dropTarget.dia === d && dropTarget.hora === h;
-    const cellBg = isDT ? dropValid?.ok ? "rgba(22,163,74,.2)" : "rgba(220,38,38,.2)" : jornadaBg(h, d);
-    const cellBrd = isDT ? dropValid?.ok ? "2px dashed #16a34a" : "2px dashed #dc2626" : `1px solid ${border}`;
-    return /*#__PURE__*/React.createElement("td", {
-      key: d,
-      style: {
-        border: cellBrd,
-        background: cellBg,
-        verticalAlign: "top",
-        padding: 2,
-        position: "relative"
-      },
-      onDragOver: e => {
-        e.preventDefault();
-        setDropTarget && setDropTarget({
-          dia: d,
-          hora: h
-        });
-      },
-      onDragLeave: () => setDropTarget && setDropTarget(null),
-      onDrop: () => onDrop && onDrop(d, h)
-    }, starting.map(cls => {
-      const col = colorFn(cls);
-      const slots = Math.max(1, Math.round((timeToMin(cls.horaFin) - timeToMin(cls.horaInicio)) / 60));
-      const bh = slots * SLOT_H - 6;
-      return /*#__PURE__*/React.createElement("div", {
-        key: cls.id,
-        draggable: !!(setDragId && canEdit),
-        onDragStart: () => setDragId && setDragId(cls.id),
-        onClick: canEdit ? () => onEdit(cls) : undefined,
-        style: {
-          position: "absolute",
-          top: 2,
-          left: 2,
-          right: 2,
-          height: bh,
-          background: col,
-          borderRadius: 6,
-          padding: "5px 7px",
-          cursor: canEdit ? "pointer" : "default",
-          overflow: "hidden",
-          zIndex: 2,
-          boxShadow: "0 2px 5px rgba(0,0,0,.2)",
-          boxSizing: "border-box"
-        }
-      }, /*#__PURE__*/React.createElement("div", {
-        style: {
-          fontWeight: 700,
-          color: "#fff",
-          fontSize: 11,
-          whiteSpace: "nowrap",
-          overflow: "hidden",
-          textOverflow: "ellipsis"
-        }
-      }, cls.materia), bh > 38 && /*#__PURE__*/React.createElement("div", {
-        style: {
-          color: "rgba(255,255,255,.85)",
-          fontSize: 10,
-          marginTop: 1,
-          whiteSpace: "nowrap",
-          overflow: "hidden",
-          textOverflow: "ellipsis"
-        }
-      }, cls._doc || "", cls._doc ? " · " : "", cls.salon), bh > 54 && /*#__PURE__*/React.createElement("div", {
-        style: {
-          color: "rgba(255,255,255,.72)",
-          fontSize: 10
-        }
-      }, cls.horaInicio, "\u2013", cls.horaFin, " \xB7 Gr.", cls.grupo));
-    }));
-  }))))));
+
+const Overlay=({children})=><div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.5)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000}}>{children}</div>;
+const Lbl=({t,muted})=><label style={{fontSize:12,color:muted,display:"block",marginBottom:4}}>{t}</label>;
+const inp=(s,b,t)=>({width:"100%",padding:"7px 10px",borderRadius:6,border:`1px solid ${b}`,background:s,color:t,fontSize:13,boxSizing:"border-box"});
+const btn=(bg,col,brd)=>({background:bg,color:col,border:brd?`1px solid ${brd}`:"none",borderRadius:7,padding:"7px 14px",cursor:"pointer",fontSize:13});
+
+function PillButtons({options,value,onChange,color,muted}){
+  return(
+    <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+      {options.map(o=>{
+        const active=value===o.value;
+        return(
+          <button key={o.value} onClick={()=>onChange(active?"":o.value)}
+            style={{padding:"5px 14px",borderRadius:20,border:`2px solid ${active?color:"#cbd5e1"}`,background:active?color:"transparent",color:active?"#fff":muted,fontWeight:active?600:400,cursor:"pointer",fontSize:12}}>
+            {o.label}
+          </button>
+        );
+      })}
+    </div>
+  );
 }
-function MatModal({
-  editMat,
-  onClose,
-  onSave,
-  onDelete,
-  classes,
-  surface,
-  border,
-  text,
-  muted
-}) {
-  const [f, setF] = useState(editMat ? {
-    nombre: editMat.nombre,
-    horas: editMat.horas,
-    semestre: editMat.semestre
-  } : {
-    nombre: "",
-    horas: 3,
-    semestre: "1"
-  });
-  const usada = editMat && classes.some(c => c.materia === editMat.nombre);
-  return /*#__PURE__*/React.createElement("div", {
-    style: {
-      position: "fixed",
-      inset: 0,
-      background: "rgba(0,0,0,.6)",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      zIndex: 1200
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      background: surface,
-      borderRadius: 12,
-      padding: 24,
-      width: 420,
-      maxWidth: "95vw",
-      border: `1px solid ${border}`
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: "flex",
-      justifyContent: "space-between",
-      marginBottom: 16
-    }
-  }, /*#__PURE__*/React.createElement("h3", {
-    style: {
-      margin: 0,
-      fontSize: 16,
-      fontWeight: 600,
-      color: text
-    }
-  }, editMat ? "Editar Materia" : "Nueva Materia"), /*#__PURE__*/React.createElement("button", {
-    onClick: onClose,
-    style: {
-      background: "transparent",
-      border: "none",
-      cursor: "pointer",
-      fontSize: 20,
-      color: muted
-    }
-  }, "\xD7")), /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: "flex",
-      flexDirection: "column",
-      gap: 10
-    }
-  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Lbl, {
-    t: "Nombre",
-    muted: muted
-  }), /*#__PURE__*/React.createElement("input", {
-    value: f.nombre,
-    onChange: e => setF(p => ({
-      ...p,
-      nombre: e.target.value
-    })),
-    placeholder: "Ej: C\xE1lculo III",
-    style: inp(surface, border, text)
-  })), /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: "grid",
-      gridTemplateColumns: "1fr 1fr",
-      gap: 10
-    }
-  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Lbl, {
-    t: "Horas/semana",
-    muted: muted
-  }), /*#__PURE__*/React.createElement("input", {
-    type: "number",
-    min: 1,
-    max: 20,
-    value: f.horas,
-    onChange: e => setF(p => ({
-      ...p,
-      horas: Number(e.target.value)
-    })),
-    style: inp(surface, border, text)
-  })), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Lbl, {
-    t: "Semestre",
-    muted: muted
-  }), /*#__PURE__*/React.createElement("select", {
-    value: f.semestre,
-    onChange: e => setF(p => ({
-      ...p,
-      semestre: e.target.value
-    })),
-    style: inp(surface, border, text)
-  }, SEMESTRES.map(s => /*#__PURE__*/React.createElement("option", {
-    key: s,
-    value: s
-  }, "Semestre ", s)))))), /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: "flex",
-      gap: 8,
-      marginTop: 16,
-      justifyContent: "space-between"
-    }
-  }, /*#__PURE__*/React.createElement("div", null, editMat && /*#__PURE__*/React.createElement("button", {
-    onClick: () => {
-      if (usada) {
-        alert("Esta materia tiene clases asignadas.");
-        return;
-      }
-      onDelete(editMat);
-    },
-    style: {
-      ...btn("#fee2e2", "#991b1b"),
-      opacity: usada ? .65 : 1
-    }
-  }, "Eliminar")), /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: "flex",
-      gap: 8
-    }
-  }, /*#__PURE__*/React.createElement("button", {
-    onClick: onClose,
-    style: btn("transparent", muted, border)
-  }, "Cancelar"), /*#__PURE__*/React.createElement("button", {
-    onClick: () => {
-      if (!f.nombre.trim()) return;
-      onSave({
-        ...f,
-        id: editMat?.id || "m" + Date.now()
-      });
-    },
-    style: {
-      ...btn("#0F6E56", "#fff"),
-      fontWeight: 600
-    }
-  }, "Guardar")))));
+
+function CalGrid({classes,dias,hours,border,headerBg,text,muted,onEdit,canEdit,colorFn,dragId,setDragId,dropTarget,setDropTarget,onDrop,dropValid,bloqueos=[],filterDocente="",onDelBloqueo}){
+  return(
+    <div style={{overflowX:"auto",userSelect:"none"}}>
+      <table style={{borderCollapse:"collapse",tableLayout:"fixed",width:"100%",minWidth:720}}>
+        <thead>
+          <tr>
+            <th style={{width:HOUR_W,background:headerBg,border:`1px solid ${border}`,height:HEADER_H,fontSize:11,color:muted,fontWeight:500,textAlign:"center"}}>Hora</th>
+            {dias.map(d=><th key={d} style={{background:headerBg,border:`1px solid ${border}`,height:HEADER_H,fontSize:12,color:text,fontWeight:700,textAlign:"center"}}>{d}</th>)}
+          </tr>
+        </thead>
+        <tbody>
+          {hours.map(h=>(
+            <tr key={h} style={{height:SLOT_H}}>
+              <td style={{background:jornadaBg(h),border:`1px solid ${border}`,textAlign:"center",verticalAlign:"middle",width:HOUR_W,padding:0}}>
+                <span style={{fontSize:11,fontWeight:600,color:jornadaColor(h)}}>{h}</span>
+              </td>
+              {dias.map(d=>{
+                const starting=classes.filter(c=>c.dia===d&&timeToMin(c.horaInicio)===timeToMin(h));
+                const isDT=dropTarget&&dropTarget.dia===d&&dropTarget.hora===h;
+                const cellBg=isDT?(dropValid?.ok?"rgba(22,163,74,.2)":"rgba(220,38,38,.2)"):jornadaBg(h,d);
+                const cellBrd=isDT?(dropValid?.ok?"2px dashed #16a34a":"2px dashed #dc2626"):`1px solid ${border}`;
+                return(
+                  <td key={d} style={{border:cellBrd,background:cellBg,verticalAlign:"top",padding:2,position:"relative"}}
+                    onDragOver={e=>{e.preventDefault();setDropTarget&&setDropTarget({dia:d,hora:h});}}
+                    onDragLeave={()=>setDropTarget&&setDropTarget(null)}
+                    onDrop={()=>onDrop&&onDrop(d,h)}>
+                    {bloqueos&&filterDocente&&filterDocente!=="pendiente"&&bloqueos.filter(b=>{
+                      if(b.docente!==filterDocente)return false;
+                      const diasB=b.dias||[b.dia];
+                      if(!diasB.includes(d))return false;
+                      const bi=timeToMin(b.horaInicio),bf=timeToMin(b.horaFin),hi=timeToMin(h);
+                      return hi>=bi&&hi<bf;
+                    }).map(b=>(
+                      <div key={b.id}
+                        onClick={canEdit?()=>{if(window.confirm(`¿Eliminar bloqueo del ${b.dias?.join(", ")||b.dia} de ${b.horaInicio} a ${b.horaFin}${b.motivo?" ("+b.motivo+")":""}?`))onDelBloqueo&&onDelBloqueo(b.id);}:undefined}
+                        style={{position:"absolute",top:2,left:2,right:2,height:SLOT_H-6,
+                        background:"repeating-linear-gradient(45deg,#94a3b822,#94a3b822 4px,transparent 4px,transparent 10px)",
+                        borderRadius:6,border:"1.5px dashed #94a3b8",zIndex:1,display:"flex",alignItems:"center",justifyContent:"center",
+                        padding:"4px 6px",boxSizing:"border-box",cursor:canEdit?"pointer":"default"}}>
+                        <div style={{textAlign:"center"}}>
+                          <div style={{fontSize:14}}>🔒</div>
+                          {canEdit&&<div style={{fontSize:9,color:"#64748b",marginTop:2}}>clic para quitar</div>}
+                          {b.motivo&&<div style={{fontSize:9,color:"#94a3b8",marginTop:1,maxWidth:80,overflow:"hidden",whiteSpace:"nowrap",textOverflow:"ellipsis"}}>{b.motivo}</div>}
+                        </div>
+                      </div>
+                    ))}
+                    {starting.map(cls=>{
+                      const col=colorFn(cls);
+                      const slots=Math.max(1,Math.round((timeToMin(cls.horaFin)-timeToMin(cls.horaInicio))/60));
+                      const bh=slots*SLOT_H-6;
+                      return(
+                        <div key={cls.id}
+                          draggable={!!(setDragId&&canEdit)}
+                          onDragStart={()=>setDragId&&setDragId(cls.id)}
+                          onClick={canEdit?()=>onEdit(cls):undefined}
+                          style={{position:"absolute",top:2,left:2,right:2,height:bh,background:col,borderRadius:6,padding:"5px 7px",cursor:canEdit?"pointer":"default",overflow:"hidden",zIndex:2,boxShadow:"0 2px 5px rgba(0,0,0,.2)",boxSizing:"border-box"}}>
+                          <div style={{fontWeight:700,color:"#fff",fontSize:11,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{cls.materia}</div>
+                          {bh>38&&<div style={{color:"rgba(255,255,255,.85)",fontSize:10,marginTop:1,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{cls._doc||""}{cls._doc?" · ":""}{cls.salon}</div>}
+                          {bh>54&&<div style={{color:"rgba(255,255,255,.72)",fontSize:10}}>{cls.horaInicio}–{cls.horaFin} · Gr.{cls.grupo}</div>}
+                        </div>
+                      );
+                    })}
+                  </td>
+                );
+              })}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
 }
-function ClaseModal({
-  initialForm,
-  onSave,
-  onDelete,
-  onClose,
-  editId,
-  classes,
-  docentes,
-  sedes,
-  salones,
-  materias,
-  surface,
-  border,
-  text,
-  muted
-}) {
-  const [form, setForm] = useState({
-    ...initialForm
-  });
-  const [val, setVal] = useState(null);
-  const handleMateria = nombre => {
-    const mat = materias.find(m => m.nombre === nombre);
-    const prev = classes.filter(c => c.materia === nombre && c.id !== editId);
-    const ref = prev[0];
-    const hi = ref?.horaInicio || "08:00";
-    const dur = mat ? mat.horas * 60 : 120;
-    const hf = minToTime(Math.min(timeToMin(hi) + dur, timeToMin("22:00")));
-    const jornada = jornadaOf(hi, form.dia)?.id || "manana";
-    const newSede = ref?.sede || form.sede;
-    setForm(f => ({
-      ...f,
-      materia: nombre,
-      semestre: mat?.semestre || f.semestre,
-      jornada,
-      horaInicio: hi,
-      horaFin: hf,
-      docente: ref?.docente || f.docente,
-      sede: newSede,
-      salon: ref?.salon || (salones[newSede] || [])[0] || f.salon,
-      grupo: ref?.grupo || "A",
-      dia: ref?.dia || "Lunes"
-    }));
+
+function MatModal({editMat,onClose,onSave,onDelete,classes,surface,border,text,muted}){
+  const [f,setF]=useState(editMat?{nombre:editMat.nombre,horas:editMat.horas,semestre:editMat.semestre}:{nombre:"",horas:3,semestre:"1"});
+  const usada=editMat&&classes.some(c=>c.materia===editMat.nombre);
+  return(
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.6)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1200}}>
+      <div style={{background:surface,borderRadius:12,padding:24,width:420,maxWidth:"95vw",border:`1px solid ${border}`}}>
+        <div style={{display:"flex",justifyContent:"space-between",marginBottom:16}}>
+          <h3 style={{margin:0,fontSize:16,fontWeight:600,color:text}}>{editMat?"Editar Materia":"Nueva Materia"}</h3>
+          <button onClick={onClose} style={{background:"transparent",border:"none",cursor:"pointer",fontSize:20,color:muted}}>×</button>
+        </div>
+        <div style={{display:"flex",flexDirection:"column",gap:10}}>
+          <div><Lbl t="Nombre" muted={muted}/><input value={f.nombre} onChange={e=>setF(p=>({...p,nombre:e.target.value}))} placeholder="Ej: Cálculo III" style={inp(surface,border,text)}/></div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+            <div><Lbl t="Horas/semana" muted={muted}/><input type="number" min={1} max={20} value={f.horas} onChange={e=>setF(p=>({...p,horas:Number(e.target.value)}))} style={inp(surface,border,text)}/></div>
+            <div><Lbl t="Semestre" muted={muted}/><select value={f.semestre} onChange={e=>setF(p=>({...p,semestre:e.target.value}))} style={inp(surface,border,text)}>{SEMESTRES.map(s=><option key={s} value={s}>Semestre {s}</option>)}</select></div>
+          </div>
+        </div>
+        <div style={{display:"flex",gap:8,marginTop:16,justifyContent:"space-between"}}>
+          <div>
+            {editMat&&(
+              <button onClick={()=>{if(usada){alert("Esta materia tiene clases asignadas.");return;}onDelete(editMat);}} style={{...btn("#fee2e2","#991b1b"),opacity:usada?.65:1}}>
+                Eliminar
+              </button>
+            )}
+          </div>
+          <div style={{display:"flex",gap:8}}>
+            <button onClick={onClose} style={btn("transparent",muted,border)}>Cancelar</button>
+            <button onClick={()=>{if(!f.nombre.trim())return;onSave({...f,id:editMat?.id||"m"+Date.now()});}} style={{...btn("#0F6E56","#fff"),fontWeight:600}}>Guardar</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ClaseModal({initialForm,onSave,onDelete,onClose,editId,classes,docentes,sedes,salones,materias,surface,border,text,muted,bloqueos=[]}){
+  const [form,setForm]=useState({...initialForm});
+  const [val,setVal]=useState(null);
+
+  const handleMateria=(nombre)=>{
+    const mat=materias.find(m=>m.nombre===nombre);
+    const prev=classes.filter(c=>c.materia===nombre&&c.id!==editId);
+    const ref=prev[0];
+    const hi=ref?.horaInicio||"08:00";
+    const dur=mat?(mat.horas*60):120;
+    const hf=minToTime(Math.min(timeToMin(hi)+dur,timeToMin("22:00")));
+    const jornada=jornadaOf(hi,form.dia)?.id||"manana";
+    const newSede=ref?.sede||form.sede;
+    setForm(f=>({...f,materia:nombre,semestre:mat?.semestre||f.semestre,jornada,horaInicio:hi,horaFin:hf,docente:ref?.docente||f.docente,sede:newSede,salon:ref?.salon||(salones[newSede]||[])[0]||f.salon,grupo:ref?.grupo||"A",dia:ref?.dia||"Lunes"}));
     setVal(null);
   };
-  const upd = (k, v) => {
-    let nf = {
-      ...form,
-      [k]: v
-    };
-    if (k === "sede") nf.salon = (salones[v] || [])[0] || "";
-    if (k === "horaInicio") {
-      const mat = materias.find(m => m.nombre === nf.materia);
-      const dur = mat ? mat.horas * 60 : timeToMin(form.horaFin) - timeToMin(form.horaInicio);
-      nf.horaFin = minToTime(Math.min(timeToMin(v) + dur, timeToMin("22:00")));
-      nf.jornada = jornadaOf(v, nf.dia)?.id || "manana";
+
+  const upd=(k,v)=>{
+    let nf={...form,[k]:v};
+    if(k==="sede") nf.salon=(salones[v]||[])[0]||"";
+    if(k==="horaInicio"){
+      const mat=materias.find(m=>m.nombre===nf.materia);
+      const dur=mat?mat.horas*60:(timeToMin(form.horaFin)-timeToMin(form.horaInicio));
+      nf.horaFin=minToTime(Math.min(timeToMin(v)+dur,timeToMin("22:00")));
+      nf.jornada=jornadaOf(v,nf.dia)?.id||"manana";
     }
     setForm(nf);
-    setVal(validateConflicts(nf, classes, editId, docentes));
+    setVal(validateConflicts(nf,classes,editId,docentes,bloqueos));
   };
-  const save = () => {
-    const r = validateConflicts(form, classes, editId, docentes);
-    if (!r.ok) {
-      setVal(r);
-      return;
-    }
+
+  const save=()=>{
+    const r=validateConflicts(form,classes,editId,docentes,bloqueos);
+    if(!r.ok){setVal(r);return;}
     onSave(form);
   };
-  return /*#__PURE__*/React.createElement(Overlay, null, /*#__PURE__*/React.createElement("div", {
-    style: {
-      background: surface,
-      borderRadius: 12,
-      padding: 24,
-      width: 520,
-      maxWidth: "95vw",
-      maxHeight: "90vh",
-      overflowY: "auto",
-      border: `1px solid ${border}`
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: "flex",
-      justifyContent: "space-between",
-      marginBottom: 18
-    }
-  }, /*#__PURE__*/React.createElement("h2", {
-    style: {
-      margin: 0,
-      fontSize: 17,
-      fontWeight: 600,
-      color: text
-    }
-  }, editId ? "Editar Clase" : "Nueva Clase"), /*#__PURE__*/React.createElement("button", {
-    onClick: onClose,
-    style: {
-      background: "transparent",
-      border: "none",
-      cursor: "pointer",
-      fontSize: 20,
-      color: muted
-    }
-  }, "\xD7")), /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: "grid",
-      gridTemplateColumns: "1fr 1fr",
-      gap: 12
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      gridColumn: "1/-1"
-    }
-  }, /*#__PURE__*/React.createElement(Lbl, {
-    t: "Materia",
-    muted: muted
-  }), /*#__PURE__*/React.createElement("select", {
-    value: form.materia || "",
-    onChange: e => handleMateria(e.target.value),
-    style: inp(surface, border, text)
-  }, materias.length === 0 && /*#__PURE__*/React.createElement("option", {
-    value: ""
-  }, "\u2014 Agrega materias en Gesti\xF3n \u2014"), [...materias].sort((a, b) => Number(a.semestre) - Number(b.semestre)).map(m => /*#__PURE__*/React.createElement("option", {
-    key: m.id,
-    value: m.nombre
-  }, m.nombre, " (Sem. ", m.semestre, ")")))), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Lbl, {
-    t: "Semestre",
-    muted: muted
-  }), /*#__PURE__*/React.createElement("select", {
-    value: form.semestre || "1",
-    onChange: e => upd("semestre", e.target.value),
-    style: inp(surface, border, text)
-  }, SEMESTRES.map(s => /*#__PURE__*/React.createElement("option", {
-    key: s,
-    value: s
-  }, "Semestre ", s)))), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Lbl, {
-    t: "Jornada",
-    muted: muted
-  }), /*#__PURE__*/React.createElement("select", {
-    value: form.jornada || "manana",
-    onChange: e => upd("jornada", e.target.value),
-    style: inp(surface, border, text)
-  }, JORNADAS.map(j => /*#__PURE__*/React.createElement("option", {
-    key: j.id,
-    value: j.id
-  }, j.label)))), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Lbl, {
-    t: "Grupo",
-    muted: muted
-  }), /*#__PURE__*/React.createElement("select", {
-    value: form.grupo || "A",
-    onChange: e => upd("grupo", e.target.value),
-    style: inp(surface, border, text)
-  }, GRUPOS.map(g => /*#__PURE__*/React.createElement("option", {
-    key: g,
-    value: g
-  }, "Grupo ", g)))), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Lbl, {
-    t: "Docente",
-    muted: muted
-  }), /*#__PURE__*/React.createElement("select", {
-    value: form.docente || "",
-    onChange: e => upd("docente", e.target.value),
-    style: inp(surface, border, text)
-  }, /*#__PURE__*/React.createElement("option", {
-    value: "pendiente"
-  }, "\u2014 Pendiente \u2014"), [...docentes].sort((a, b) => a.name.localeCompare(b.name)).map(d => /*#__PURE__*/React.createElement("option", {
-    key: d.id,
-    value: d.id
-  }, d.name)))), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Lbl, {
-    t: "Sede",
-    muted: muted
-  }), /*#__PURE__*/React.createElement("select", {
-    value: form.sede || "",
-    onChange: e => upd("sede", e.target.value),
-    style: inp(surface, border, text)
-  }, [...sedes].sort((a, b) => a.name.localeCompare(b.name)).map(s => /*#__PURE__*/React.createElement("option", {
-    key: s.id,
-    value: s.id
-  }, s.name)))), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Lbl, {
-    t: "Sal\xF3n",
-    muted: muted
-  }), /*#__PURE__*/React.createElement("select", {
-    value: form.salon || "",
-    onChange: e => upd("salon", e.target.value),
-    style: inp(surface, border, text)
-  }, /*#__PURE__*/React.createElement("option", {
-    value: "pendiente"
-  }, "\u2014 Pendiente \u2014"), [...(salones[form.sede] || [])].sort((a, b) => a.localeCompare(b)).map(s => /*#__PURE__*/React.createElement("option", {
-    key: s
-  }, s)))), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Lbl, {
-    t: "D\xEDa",
-    muted: muted
-  }), /*#__PURE__*/React.createElement("select", {
-    value: form.dia || "Lunes",
-    onChange: e => upd("dia", e.target.value),
-    style: inp(surface, border, text)
-  }, DAYS.map(d => /*#__PURE__*/React.createElement("option", {
-    key: d
-  }, d)))), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Lbl, {
-    t: "Hora inicio",
-    muted: muted
-  }), /*#__PURE__*/React.createElement("select", {
-    value: form.horaInicio || "08:00",
-    onChange: e => upd("horaInicio", e.target.value),
-    style: inp(surface, border, text)
-  }, ALL_HOURS.map(h => /*#__PURE__*/React.createElement("option", {
-    key: h
-  }, h)))), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Lbl, {
-    t: "Hora fin",
-    muted: muted
-  }), /*#__PURE__*/React.createElement("select", {
-    value: form.horaFin || "10:00",
-    onChange: e => upd("horaFin", e.target.value),
-    style: inp(surface, border, text)
-  }, ALL_HOURS.filter(h => h > (form.horaInicio || "08:00")).map(h => /*#__PURE__*/React.createElement("option", {
-    key: h
-  }, h))))), val && /*#__PURE__*/React.createElement("div", {
-    style: {
-      marginTop: 12,
-      padding: "9px 13px",
-      borderRadius: 7,
-      background: val.ok ? "#dcfce7" : "#fee2e2",
-      color: val.ok ? "#166534" : "#991b1b",
-      fontSize: 13
-    }
-  }, val.ok ? "✓ Sin conflictos." : `✗ ${val.msg}`), /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: "flex",
-      gap: 8,
-      marginTop: 16,
-      justifyContent: "space-between"
-    }
-  }, /*#__PURE__*/React.createElement("div", null, editId && /*#__PURE__*/React.createElement("button", {
-    onClick: onDelete,
-    style: btn("#fee2e2", "#991b1b")
-  }, "Eliminar")), /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: "flex",
-      gap: 8
-    }
-  }, /*#__PURE__*/React.createElement("button", {
-    onClick: onClose,
-    style: btn("transparent", muted, border)
-  }, "Cancelar"), /*#__PURE__*/React.createElement("button", {
-    onClick: save,
-    style: {
-      ...btn("#185FA5", "#fff"),
-      fontWeight: 600
-    }
-  }, "Guardar")))));
+
+  return(
+    <Overlay>
+      <div style={{background:surface,borderRadius:12,padding:24,width:520,maxWidth:"95vw",maxHeight:"90vh",overflowY:"auto",border:`1px solid ${border}`}}>
+        <div style={{display:"flex",justifyContent:"space-between",marginBottom:18}}>
+          <h2 style={{margin:0,fontSize:17,fontWeight:600,color:text}}>{editId?"Editar Clase":"Nueva Clase"}</h2>
+          <button onClick={onClose} style={{background:"transparent",border:"none",cursor:"pointer",fontSize:20,color:muted}}>×</button>
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+          <div style={{gridColumn:"1/-1"}}>
+            <Lbl t="Materia" muted={muted}/>
+            <select value={form.materia||""} onChange={e=>handleMateria(e.target.value)} style={inp(surface,border,text)}>
+              {materias.length===0&&<option value="">— Agrega materias en Gestión —</option>}
+              {[...materias].sort((a,b)=>Number(a.semestre)-Number(b.semestre)).map(m=>(
+                <option key={m.id} value={m.nombre}>{m.nombre} (Sem. {m.semestre})</option>
+              ))}
+            </select>
+          </div>
+          <div><Lbl t="Semestre" muted={muted}/><select value={form.semestre||"1"} onChange={e=>upd("semestre",e.target.value)} style={inp(surface,border,text)}>{SEMESTRES.map(s=><option key={s} value={s}>Semestre {s}</option>)}</select></div>
+          <div><Lbl t="Jornada" muted={muted}/><select value={form.jornada||"manana"} onChange={e=>upd("jornada",e.target.value)} style={inp(surface,border,text)}>{JORNADAS.map(j=><option key={j.id} value={j.id}>{j.label}</option>)}</select></div>
+          <div><Lbl t="Grupo" muted={muted}/><select value={form.grupo||"A"} onChange={e=>upd("grupo",e.target.value)} style={inp(surface,border,text)}>{GRUPOS.map(g=><option key={g} value={g}>Grupo {g}</option>)}</select></div>
+          <div><Lbl t="Docente" muted={muted}/><select value={form.docente||""} onChange={e=>upd("docente",e.target.value)} style={inp(surface,border,text)}><option value="pendiente">— Pendiente —</option>{[...docentes].sort((a,b)=>a.name.localeCompare(b.name)).map(d=><option key={d.id} value={d.id}>{d.name}</option>)}</select></div>
+          <div><Lbl t="Sede" muted={muted}/><select value={form.sede||""} onChange={e=>upd("sede",e.target.value)} style={inp(surface,border,text)}>{[...sedes].sort((a,b)=>a.name.localeCompare(b.name)).map(s=><option key={s.id} value={s.id}>{s.name}</option>)}</select></div>
+          <div><Lbl t="Salón" muted={muted}/><select value={form.salon||""} onChange={e=>upd("salon",e.target.value)} style={inp(surface,border,text)}><option value="pendiente">— Pendiente —</option>{[...(salones[form.sede]||[])].sort((a,b)=>a.localeCompare(b)).map(s=><option key={s}>{s}</option>)}</select></div>
+          <div><Lbl t="Día" muted={muted}/><select value={form.dia||"Lunes"} onChange={e=>upd("dia",e.target.value)} style={inp(surface,border,text)}>{DAYS.map(d=><option key={d}>{d}</option>)}</select></div>
+          <div><Lbl t="Hora inicio" muted={muted}/><select value={form.horaInicio||"08:00"} onChange={e=>upd("horaInicio",e.target.value)} style={inp(surface,border,text)}>{ALL_HOURS.map(h=><option key={h}>{h}</option>)}</select></div>
+          <div><Lbl t="Hora fin" muted={muted}/><select value={form.horaFin||"10:00"} onChange={e=>upd("horaFin",e.target.value)} style={inp(surface,border,text)}>{ALL_HOURS.filter(h=>h>(form.horaInicio||"08:00")).map(h=><option key={h}>{h}</option>)}</select></div>
+        </div>
+        {val&&<div style={{marginTop:12,padding:"9px 13px",borderRadius:7,background:val.ok?"#dcfce7":"#fee2e2",color:val.ok?"#166534":"#991b1b",fontSize:13}}>{val.ok?"✓ Sin conflictos.":`✗ ${val.msg}`}</div>}
+        <div style={{display:"flex",gap:8,marginTop:16,justifyContent:"space-between"}}>
+          <div>{editId&&<button onClick={onDelete} style={btn("#fee2e2","#991b1b")}>Eliminar</button>}</div>
+          <div style={{display:"flex",gap:8}}>
+            <button onClick={onClose} style={btn("transparent",muted,border)}>Cancelar</button>
+            <button onClick={save} style={{...btn("#185FA5","#fff"),fontWeight:600}}>Guardar</button>
+          </div>
+        </div>
+      </div>
+    </Overlay>
+  );
 }
-function GestionView({
-  docentes,
-  salones,
-  sedes,
-  sede,
-  materias,
-  setMaterias,
-  classes,
-  setClasses,
-  border,
-  text,
-  muted,
-  surface,
-  canEdit,
-  onNewDoc,
-  onEditDoc,
-  onNewSede,
-  onEditSede,
-  onDelSalon,
-  onEditSalon,
-  newSalon,
-  setNewSalon,
-  saveSalon,
-  gTab,
-  setGTab
-}) {
-  const [matModal, setMatModal] = useState(null);
-  const [salonSede, setSalonSede] = useState(sede);
-  const [editSalon, setEditSalon] = useState(null);
-  const [editSalonVal, setEditSalonVal] = useState("");
-  const [selectedDoc, setSelectedDoc] = useState(null);
-  const handleSaveMat = mat => {
-    const existe = materias.find(m => m.id === mat.id);
-    if (existe) setMaterias(ms => ms.map(m => m.id === mat.id ? mat : m));else setMaterias(ms => [...ms, mat]);
+
+function GestionView({docentes,salones,sedes,sede,materias,setMaterias,classes,setClasses,border,text,muted,surface,canEdit,onNewDoc,onEditDoc,onNewSede,onEditSede,onDelSalon,onEditSalon,newSalon,setNewSalon,saveSalon,gTab,setGTab}){
+  const [matModal,setMatModal]=useState(null);
+  const [salonSede,setSalonSede]=useState(sede);
+  const [editSalon,setEditSalon]=useState(null);
+  const [editSalonVal,setEditSalonVal]=useState("");
+  const [selectedDoc,setSelectedDoc]=useState(null);
+
+  const handleSaveMat=(mat)=>{
+    const existe=materias.find(m=>m.id===mat.id);
+    if(existe) setMaterias(ms=>ms.map(m=>m.id===mat.id?mat:m));
+    else setMaterias(ms=>[...ms,mat]);
     setMatModal(null);
   };
-  const handleDelMat = mat => {
-    setMaterias(ms => ms.filter(m => m.id !== mat.id));
+  const handleDelMat=(mat)=>{
+    setMaterias(ms=>ms.filter(m=>m.id!==mat.id));
     setMatModal(null);
   };
-  return /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: "flex",
-      gap: 4,
-      marginBottom: 16,
-      flexWrap: "wrap"
-    }
-  }, [["docentes", "Docentes", "#185FA5"], ["materias", "Materias", "#0F6E56"], ["salones", "Salones", "#b45309"], ["sedes", "Sedes", "#7F77DD"]].map(([t, l, c]) => /*#__PURE__*/React.createElement("button", {
-    key: t,
-    onClick: () => setGTab(t),
-    style: {
-      padding: "7px 18px",
-      borderRadius: 7,
-      border: "none",
-      cursor: "pointer",
-      fontWeight: gTab === t ? 600 : 400,
-      background: gTab === t ? c : "#e2e8f0",
-      color: gTab === t ? "#fff" : "#334155",
-      fontSize: 13
-    }
-  }, l))), gTab === "docentes" && /*#__PURE__*/React.createElement("div", null, canEdit && /*#__PURE__*/React.createElement("button", {
-    onClick: onNewDoc,
-    style: {
-      ...btn("#185FA5", "#fff"),
-      fontWeight: 600,
-      marginBottom: 14
-    }
-  }, "+ Nuevo Docente"), /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: "grid",
-      gridTemplateColumns: "repeat(auto-fill,minmax(260px,1fr))",
-      gap: 10
-    }
-  }, docentes.map((d, i) => {
-    const col = DOC_COLORS[i % DOC_COLORS.length];
-    const hrs = docHours(d.id, classes);
-    const isSelected = selectedDoc === d.id;
-    return /*#__PURE__*/React.createElement("div", {
-      key: d.id,
-      style: {
-        background: surface,
-        border: `2px solid ${isSelected ? col : col + "44"}`,
-        borderRadius: 10,
-        overflow: "hidden"
-      }
-    }, /*#__PURE__*/React.createElement("div", {
-      style: {
-        padding: 14,
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "center",
-        cursor: "pointer"
-      },
-      onClick: () => setSelectedDoc(isSelected ? null : d.id)
-    }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
-      style: {
-        fontWeight: 700,
-        color: col,
-        fontSize: 13
-      }
-    }, d.name), /*#__PURE__*/React.createElement("div", {
-      style: {
-        fontSize: 11,
-        color: muted,
-        marginTop: 2
-      }
-    }, d.email || "Sin correo"), /*#__PURE__*/React.createElement("div", {
-      style: {
-        fontSize: 12,
-        color: col,
-        marginTop: 6,
-        fontWeight: 600
-      }
-    }, hrs, "h/sem \xB7 ", classes.filter(c => c.docente === d.id).length, " clases")), /*#__PURE__*/React.createElement("div", {
-      style: {
-        display: "flex",
-        gap: 6,
-        alignItems: "center"
-      }
-    }, canEdit && /*#__PURE__*/React.createElement("button", {
-      onClick: e => {
-        e.stopPropagation();
-        onEditDoc(d);
-      },
-      style: btn("#f1f5f9", "#334155")
-    }, "Editar"), /*#__PURE__*/React.createElement("span", {
-      style: {
-        color: col,
-        fontSize: 16
-      }
-    }, isSelected ? "▲" : "▼"))), isSelected && (() => {
-      const docClases = classes.filter(c => c.docente === d.id);
-      return /*#__PURE__*/React.createElement("div", {
-        style: {
-          borderTop: `1px solid ${col}33`,
-          background: col + "0A",
-          padding: 12
-        }
-      }, docClases.length === 0 && /*#__PURE__*/React.createElement("div", {
-        style: {
-          color: muted,
-          fontSize: 12
-        }
-      }, "Sin clases asignadas."), docClases.map(c => /*#__PURE__*/React.createElement("div", {
-        key: c.id,
-        style: {
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          padding: "6px 8px",
-          marginBottom: 4,
-          background: surface,
-          borderRadius: 6,
-          border: `1px solid ${col}22`
-        }
-      }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
-        style: {
-          fontWeight: 600,
-          fontSize: 12,
-          color: text
-        }
-      }, c.materia), /*#__PURE__*/React.createElement("div", {
-        style: {
-          fontSize: 11,
-          color: muted
-        }
-      }, c.dia, " ", c.horaInicio, "\u2013", c.horaFin, " \xB7 Gr.", c.grupo, " \xB7 ", sedes.find(s => s.id === c.sede)?.name || c.sede)), canEdit && /*#__PURE__*/React.createElement("button", {
-        onClick: () => {
-          if (window.confirm(`¿Eliminar "${c.materia}" del horario?`)) setClasses(cs => cs.filter(x => x.id !== c.id));
-        },
-        style: {
-          background: "transparent",
-          border: "none",
-          color: "#dc2626",
-          cursor: "pointer",
-          fontSize: 18,
-          lineHeight: 1,
-          padding: "0 4px"
-        }
-      }, "\xD7"))));
-    })());
-  }))), gTab === "materias" && /*#__PURE__*/React.createElement("div", null, canEdit && /*#__PURE__*/React.createElement("button", {
-    onClick: () => setMatModal("new"),
-    style: {
-      ...btn("#0F6E56", "#fff"),
-      fontWeight: 600,
-      marginBottom: 14
-    }
-  }, "+ Nueva Materia"), /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: "grid",
-      gridTemplateColumns: "repeat(auto-fill,minmax(240px,1fr))",
-      gap: 12
-    }
-  }, SEMESTRES.map(sem => {
-    const ms = materias.filter(m => m.semestre === sem);
-    if (!ms.length) return null;
-    return /*#__PURE__*/React.createElement("div", {
-      key: sem,
-      style: {
-        background: surface,
-        border: `1px solid ${border}`,
-        borderRadius: 10,
-        padding: 14
-      }
-    }, /*#__PURE__*/React.createElement("div", {
-      style: {
-        fontWeight: 700,
-        color: "#185FA5",
-        fontSize: 13,
-        marginBottom: 10
-      }
-    }, "Semestre ", sem), ms.map(m => /*#__PURE__*/React.createElement("div", {
-      key: m.id,
-      style: {
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "center",
-        padding: "6px 0",
-        borderBottom: `1px solid ${border}`
-      }
-    }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
-      style: {
-        fontSize: 13,
-        color: text,
-        fontWeight: 500
-      }
-    }, m.nombre), /*#__PURE__*/React.createElement("div", {
-      style: {
-        fontSize: 11,
-        color: muted
-      }
-    }, m.horas, "h/sem")), canEdit && /*#__PURE__*/React.createElement("button", {
-      onClick: () => setMatModal(m),
-      style: btn("#f1f5f9", "#334155")
-    }, "Editar"))));
-  }), materias.length === 0 && /*#__PURE__*/React.createElement("div", {
-    style: {
-      color: muted,
-      fontSize: 13
-    }
-  }, "No hay materias."))), gTab === "sedes" && /*#__PURE__*/React.createElement("div", null, canEdit && /*#__PURE__*/React.createElement("button", {
-    onClick: onNewSede,
-    style: {
-      ...btn("#7F77DD", "#fff"),
-      fontWeight: 600,
-      marginBottom: 14
-    }
-  }, "+ Nueva Sede"), /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: "grid",
-      gridTemplateColumns: "repeat(auto-fill,minmax(220px,1fr))",
-      gap: 10
-    }
-  }, sedes.map(s => /*#__PURE__*/React.createElement("div", {
-    key: s.id,
-    style: {
-      background: surface,
-      border: `2px solid ${s.color}44`,
-      borderRadius: 10,
-      padding: 14,
-      display: "flex",
-      justifyContent: "space-between",
-      alignItems: "center"
-    }
-  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontWeight: 700,
-      color: s.color,
-      fontSize: 13
-    }
-  }, s.name), /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 11,
-      color: muted,
-      marginTop: 2
-    }
-  }, classes.filter(c => c.sede === s.id).length, " clases \xB7 ", (salones[s.id] || []).length, " salones")), canEdit && /*#__PURE__*/React.createElement("button", {
-    onClick: () => onEditSede(s),
-    style: btn("#f1f5f9", "#334155")
-  }, "Editar"))))), gTab === "salones" && /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: "flex",
-      gap: 8,
-      marginBottom: 16,
-      alignItems: "center",
-      flexWrap: "wrap"
-    }
-  }, /*#__PURE__*/React.createElement("span", {
-    style: {
-      fontSize: 12,
-      color: muted,
-      fontWeight: 600
-    }
-  }, "Sede:"), sedes.map(s => /*#__PURE__*/React.createElement("button", {
-    key: s.id,
-    onClick: () => setSalonSede(s.id),
-    style: {
-      padding: "5px 14px",
-      borderRadius: 16,
-      border: `2px solid ${s.color}`,
-      cursor: "pointer",
-      fontSize: 12,
-      fontWeight: 600,
-      background: salonSede === s.id ? s.color : "transparent",
-      color: salonSede === s.id ? "#fff" : s.color
-    }
-  }, s.name))), canEdit && /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: "flex",
-      gap: 8,
-      marginBottom: 16,
-      alignItems: "center",
-      flexWrap: "wrap"
-    }
-  }, /*#__PURE__*/React.createElement("input", {
-    value: newSalon,
-    onChange: e => setNewSalon(e.target.value),
-    onKeyDown: e => e.key === "Enter" && saveSalon(salonSede),
-    placeholder: "Ej: A301",
-    style: {
-      ...inp(surface, border, text),
-      width: 160
-    }
-  }), /*#__PURE__*/React.createElement("button", {
-    onClick: () => saveSalon(salonSede),
-    style: {
-      ...btn("#b45309", "#fff"),
-      fontWeight: 600
-    }
-  }, "+ Agregar")), /*#__PURE__*/React.createElement("div", {
-    style: {
-      background: surface,
-      border: `2px solid ${sedes.find(s => s.id === salonSede)?.color || border}44`,
-      borderRadius: 10,
-      padding: 14,
-      maxWidth: 400
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontWeight: 700,
-      color: sedes.find(s => s.id === salonSede)?.color || text,
-      fontSize: 13,
-      marginBottom: 10
-    }
-  }, sedes.find(s => s.id === salonSede)?.name, " \u2014 ", (salones[salonSede] || []).length, " salones"), (salones[salonSede] || []).length === 0 && /*#__PURE__*/React.createElement("div", {
-    style: {
-      color: muted,
-      fontSize: 13
-    }
-  }, "Sin salones. Agrega uno arriba."), (salones[salonSede] || []).map(sal => /*#__PURE__*/React.createElement("div", {
-    key: sal,
-    style: {
-      display: "flex",
-      justifyContent: "space-between",
-      alignItems: "center",
-      padding: "6px 0",
-      borderBottom: `1px solid ${border}`
-    }
-  }, editSalon === sal ? /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: "flex",
-      gap: 6,
-      flex: 1
-    }
-  }, /*#__PURE__*/React.createElement("input", {
-    value: editSalonVal,
-    onChange: e => setEditSalonVal(e.target.value),
-    onKeyDown: e => {
-      if (e.key === "Enter") {
-        onEditSalon(salonSede, sal, editSalonVal);
-        setEditSalon(null);
-      }
-      if (e.key === "Escape") setEditSalon(null);
-    },
-    style: {
-      ...inp(surface, border, text),
-      width: "100%"
-    },
-    autoFocus: true
-  }), /*#__PURE__*/React.createElement("button", {
-    onClick: () => {
-      onEditSalon(salonSede, sal, editSalonVal);
-      setEditSalon(null);
-    },
-    style: btn("#0F6E56", "#fff")
-  }, "\u2713"), /*#__PURE__*/React.createElement("button", {
-    onClick: () => setEditSalon(null),
-    style: btn("transparent", muted, border)
-  }, "\u2715")) : /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("span", {
-    style: {
-      fontSize: 13,
-      color: text,
-      fontWeight: 500
-    }
-  }, sal), canEdit && /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: "flex",
-      gap: 4
-    }
-  }, /*#__PURE__*/React.createElement("button", {
-    onClick: () => {
-      setEditSalon(sal);
-      setEditSalonVal(sal);
-    },
-    style: {
-      ...btn("#f1f5f9", "#334155"),
-      fontSize: 12,
-      padding: "4px 10px"
-    }
-  }, "Editar"), /*#__PURE__*/React.createElement("button", {
-    onClick: () => onDelSalon(salonSede, sal),
-    style: {
-      background: "transparent",
-      border: "none",
-      color: "#dc2626",
-      cursor: "pointer",
-      fontSize: 18,
-      lineHeight: 1
-    }
-  }, "\xD7"))))))), matModal && /*#__PURE__*/React.createElement(MatModal, {
-    editMat: matModal === "new" ? null : matModal,
-    onClose: () => setMatModal(null),
-    onSave: handleSaveMat,
-    onDelete: handleDelMat,
-    classes: classes,
-    surface: surface,
-    border: border,
-    text: text,
-    muted: muted
-  }));
+
+  return(
+    <div>
+      <div style={{display:"flex",gap:4,marginBottom:16,flexWrap:"wrap"}}>
+        {[["docentes","Docentes","#185FA5"],["materias","Materias","#0F6E56"],["salones","Salones","#b45309"],["sedes","Sedes","#7F77DD"]].map(([t,l,c])=>(
+          <button key={t} onClick={()=>setGTab(t)} style={{padding:"7px 18px",borderRadius:7,border:"none",cursor:"pointer",fontWeight:gTab===t?600:400,background:gTab===t?c:"#e2e8f0",color:gTab===t?"#fff":"#334155",fontSize:13}}>{l}</button>
+        ))}
+      </div>
+
+      {gTab==="docentes"&&(
+        <div>
+          {canEdit&&<button onClick={onNewDoc} style={{...btn("#185FA5","#fff"),fontWeight:600,marginBottom:14}}>+ Nuevo Docente</button>}
+          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(260px,1fr))",gap:10}}>
+            {docentes.map((d,i)=>{
+              const col=DOC_COLORS[i%DOC_COLORS.length];
+              const hrs=docHours(d.id,classes);
+              const isSelected=selectedDoc===d.id;
+              return(
+                <div key={d.id} style={{background:surface,border:`2px solid ${isSelected?col:col+"44"}`,borderRadius:10,overflow:"hidden"}}>
+                  <div style={{padding:14,display:"flex",justifyContent:"space-between",alignItems:"center",cursor:"pointer"}}
+                    onClick={()=>setSelectedDoc(isSelected?null:d.id)}>
+                    <div>
+                      <div style={{fontWeight:700,color:col,fontSize:13}}>{d.name}</div>
+                      <div style={{fontSize:11,color:muted,marginTop:2}}>{d.email||"Sin correo"}</div>
+                      <div style={{fontSize:12,color:col,marginTop:6,fontWeight:600}}>{hrs}h/sem · {classes.filter(c=>c.docente===d.id).length} clases</div>
+                    </div>
+                    <div style={{display:"flex",gap:6,alignItems:"center"}}>
+                      {canEdit&&<button onClick={e=>{e.stopPropagation();onEditDoc(d);}} style={btn("#f1f5f9","#334155")}>Editar</button>}
+                      <span style={{color:col,fontSize:16}}>{isSelected?"▲":"▼"}</span>
+                    </div>
+                  </div>
+                  {isSelected&&(()=>{
+                    const docClases=classes.filter(c=>c.docente===d.id);
+                    return(
+                      <div style={{borderTop:`1px solid ${col}33`,background:col+"0A",padding:12}}>
+                        {docClases.length===0&&<div style={{color:muted,fontSize:12}}>Sin clases asignadas.</div>}
+                        {docClases.map(c=>(
+                          <div key={c.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"6px 8px",marginBottom:4,background:surface,borderRadius:6,border:`1px solid ${col}22`}}>
+                            <div>
+                              <div style={{fontWeight:600,fontSize:12,color:text}}>{c.materia}</div>
+                              <div style={{fontSize:11,color:muted}}>{c.dia} {c.horaInicio}–{c.horaFin} · Gr.{c.grupo} · {sedes.find(s=>s.id===c.sede)?.name||c.sede}</div>
+                            </div>
+                            {canEdit&&(
+                              <button onClick={()=>{if(window.confirm(`¿Eliminar "${c.materia}" del horario?`))setClasses(cs=>cs.filter(x=>x.id!==c.id));}}
+                                style={{background:"transparent",border:"none",color:"#dc2626",cursor:"pointer",fontSize:18,lineHeight:1,padding:"0 4px"}}>×</button>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })()}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {gTab==="materias"&&(
+        <div>
+          {canEdit&&(
+            <button onClick={()=>setMatModal("new")} style={{...btn("#0F6E56","#fff"),fontWeight:600,marginBottom:14}}>
+              + Nueva Materia
+            </button>
+          )}
+          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(240px,1fr))",gap:12}}>
+            {SEMESTRES.map(sem=>{
+              const ms=materias.filter(m=>m.semestre===sem);
+              if(!ms.length)return null;
+              return(
+                <div key={sem} style={{background:surface,border:`1px solid ${border}`,borderRadius:10,padding:14}}>
+                  <div style={{fontWeight:700,color:"#185FA5",fontSize:13,marginBottom:10}}>Semestre {sem}</div>
+                  {ms.map(m=>(
+                    <div key={m.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"6px 0",borderBottom:`1px solid ${border}`}}>
+                      <div>
+                        <div style={{fontSize:13,color:text,fontWeight:500}}>{m.nombre}</div>
+                        <div style={{fontSize:11,color:muted}}>{m.horas}h/sem</div>
+                      </div>
+                      {canEdit&&<button onClick={()=>setMatModal(m)} style={btn("#f1f5f9","#334155")}>Editar</button>}
+                    </div>
+                  ))}
+                </div>
+              );
+            })}
+            {materias.length===0&&<div style={{color:muted,fontSize:13}}>No hay materias.</div>}
+          </div>
+        </div>
+      )}
+
+      {gTab==="sedes"&&(
+        <div>
+          {canEdit&&<button onClick={onNewSede} style={{...btn("#7F77DD","#fff"),fontWeight:600,marginBottom:14}}>+ Nueva Sede</button>}
+          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(220px,1fr))",gap:10}}>
+            {sedes.map(s=>(
+              <div key={s.id} style={{background:surface,border:`2px solid ${s.color}44`,borderRadius:10,padding:14,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                <div>
+                  <div style={{fontWeight:700,color:s.color,fontSize:13}}>{s.name}</div>
+                  <div style={{fontSize:11,color:muted,marginTop:2}}>{classes.filter(c=>c.sede===s.id).length} clases · {(salones[s.id]||[]).length} salones</div>
+                </div>
+                {canEdit&&<button onClick={()=>onEditSede(s)} style={btn("#f1f5f9","#334155")}>Editar</button>}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {gTab==="salones"&&(
+        <div>
+          {/* Selector de sede */}
+          <div style={{display:"flex",gap:8,marginBottom:16,alignItems:"center",flexWrap:"wrap"}}>
+            <span style={{fontSize:12,color:muted,fontWeight:600}}>Sede:</span>
+            {sedes.map(s=>(
+              <button key={s.id} onClick={()=>setSalonSede(s.id)}
+                style={{padding:"5px 14px",borderRadius:16,border:`2px solid ${s.color}`,cursor:"pointer",fontSize:12,fontWeight:600,
+                  background:salonSede===s.id?s.color:"transparent",color:salonSede===s.id?"#fff":s.color}}>
+                {s.name}
+              </button>
+            ))}
+          </div>
+
+          {/* Agregar salón */}
+          {canEdit&&(
+            <div style={{display:"flex",gap:8,marginBottom:16,alignItems:"center",flexWrap:"wrap"}}>
+              <input value={newSalon} onChange={e=>setNewSalon(e.target.value)}
+                onKeyDown={e=>e.key==="Enter"&&saveSalon(salonSede)}
+                placeholder="Ej: A301" style={{...inp(surface,border,text),width:160}}/>
+              <button onClick={()=>saveSalon(salonSede)} style={{...btn("#b45309","#fff"),fontWeight:600}}>+ Agregar</button>
+            </div>
+          )}
+
+          {/* Lista de salones de la sede seleccionada */}
+          <div style={{background:surface,border:`2px solid ${sedes.find(s=>s.id===salonSede)?.color||border}44`,borderRadius:10,padding:14,maxWidth:400}}>
+            <div style={{fontWeight:700,color:sedes.find(s=>s.id===salonSede)?.color||text,fontSize:13,marginBottom:10}}>
+              {sedes.find(s=>s.id===salonSede)?.name} — {(salones[salonSede]||[]).length} salones
+            </div>
+            {(salones[salonSede]||[]).length===0&&(
+              <div style={{color:muted,fontSize:13}}>Sin salones. Agrega uno arriba.</div>
+            )}
+            {(salones[salonSede]||[]).map(sal=>(
+              <div key={sal} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"6px 0",borderBottom:`1px solid ${border}`}}>
+                {editSalon===sal?(
+                  <div style={{display:"flex",gap:6,flex:1}}>
+                    <input value={editSalonVal} onChange={e=>setEditSalonVal(e.target.value)}
+                      onKeyDown={e=>{if(e.key==="Enter"){onEditSalon(salonSede,sal,editSalonVal);setEditSalon(null);}if(e.key==="Escape")setEditSalon(null);}}
+                      style={{...inp(surface,border,text),width:"100%"}} autoFocus/>
+                    <button onClick={()=>{onEditSalon(salonSede,sal,editSalonVal);setEditSalon(null);}} style={btn("#0F6E56","#fff")}>✓</button>
+                    <button onClick={()=>setEditSalon(null)} style={btn("transparent",muted,border)}>✕</button>
+                  </div>
+                ):(
+                  <>
+                    <span style={{fontSize:13,color:text,fontWeight:500}}>{sal}</span>
+                    {canEdit&&(
+                      <div style={{display:"flex",gap:4}}>
+                        <button onClick={()=>{setEditSalon(sal);setEditSalonVal(sal);}} style={{...btn("#f1f5f9","#334155"),fontSize:12,padding:"4px 10px"}}>Editar</button>
+                        <button onClick={()=>onDelSalon(salonSede,sal)} style={{background:"transparent",border:"none",color:"#dc2626",cursor:"pointer",fontSize:18,lineHeight:1}}>×</button>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {matModal&&(
+        <MatModal
+          editMat={matModal==="new"?null:matModal}
+          onClose={()=>setMatModal(null)}
+          onSave={handleSaveMat}
+          onDelete={handleDelMat}
+          classes={classes}
+          surface={surface} border={border} text={text} muted={muted}/>
+      )}
+    </div>
+  );
 }
-function StatsView({
-  classes,
-  allClasses,
-  docentes,
-  sedes,
-  sede,
-  border,
-  text,
-  muted,
-  surface
-}) {
-  const occ = sid => {
-    const total = ALL_HOURS.length * DAYS.length;
-    const o = ALL_HOURS.reduce((a, h) => a + DAYS.filter(d => allClasses.some(c => c.sede === sid && c.dia === d && timeToMin(c.horaInicio) <= timeToMin(h) && timeToMin(c.horaFin) > timeToMin(h))).length, 0);
-    return Math.round(o / total * 100);
+
+function StatsView({classes,allClasses,docentes,sedes,sede,border,text,muted,surface}){
+  const occ=sid=>{
+    const total=ALL_HOURS.length*DAYS.length;
+    const o=ALL_HOURS.reduce((a,h)=>a+DAYS.filter(d=>allClasses.some(c=>c.sede===sid&&c.dia===d&&timeToMin(c.horaInicio)<=timeToMin(h)&&timeToMin(c.horaFin)>timeToMin(h))).length,0);
+    return Math.round((o/total)*100);
   };
-  const cs = sedes.find(s => s.id === sede);
-  const sedeAll = allClasses.filter(c => c.sede === sede);
-  return /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: "grid",
-      gridTemplateColumns: "repeat(auto-fit,minmax(130px,1fr))",
-      gap: 12,
-      marginBottom: 20
-    }
-  }, [{
-    l: "Clases visibles",
-    v: classes.length,
-    c: "#185FA5"
-  }, {
-    l: "Docentes activos",
-    v: new Set(classes.map(c => c.docente)).size,
-    c: "#0F6E56"
-  }, {
-    l: "Semestres",
-    v: new Set(classes.map(c => c.semestre)).size,
-    c: "#D85A30"
-  }, {
-    l: "Total sede",
-    v: sedeAll.length,
-    c: "#7F77DD"
-  }].map(s => /*#__PURE__*/React.createElement("div", {
-    key: s.l,
-    style: {
-      background: surface,
-      border: `1px solid ${border}`,
-      borderRadius: 9,
-      padding: "14px 16px"
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 11,
-      color: muted,
-      marginBottom: 4
-    }
-  }, s.l), /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 28,
-      fontWeight: 700,
-      color: s.c
-    }
-  }, s.v)))), cs && /*#__PURE__*/React.createElement("div", {
-    style: {
-      background: surface,
-      border: `1px solid ${border}`,
-      borderRadius: 9,
-      padding: 16,
-      marginBottom: 14
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontWeight: 700,
-      color: cs.color,
-      fontSize: 14,
-      marginBottom: 4
-    }
-  }, cs.name), /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 12,
-      color: muted,
-      marginBottom: 8
-    }
-  }, sedeAll.length, " clases \xB7 ", occ(sede), "% ocupaci\xF3n"), /*#__PURE__*/React.createElement("div", {
-    style: {
-      background: "#e2e8f0",
-      borderRadius: 20,
-      height: 8,
-      overflow: "hidden"
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      width: `${occ(sede)}%`,
-      background: cs.color,
-      height: "100%",
-      borderRadius: 20
-    }
-  })), /*#__PURE__*/React.createElement("div", {
-    style: {
-      marginTop: 10
-    }
-  }, docentes.map(d => {
-    const n = sedeAll.filter(c => c.docente === d.id).length;
-    const h = docHours(d.id, sedeAll);
-    return n > 0 ? /*#__PURE__*/React.createElement("div", {
-      key: d.id,
-      style: {
-        color: muted,
-        fontSize: 12,
-        marginBottom: 2
-      }
-    }, "\xB7 ", d.name, ": ", n, " clase", n > 1 ? "s" : "", " (", h, "h)") : null;
-  }))), /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: "grid",
-      gridTemplateColumns: "repeat(auto-fit,minmax(200px,1fr))",
-      gap: 12
-    }
-  }, sedes.filter(s => s.id !== sede).map(s => {
-    const sc = allClasses.filter(c => c.sede === s.id);
-    return /*#__PURE__*/React.createElement("div", {
-      key: s.id,
-      style: {
-        background: surface,
-        border: `1px solid ${border}`,
-        borderRadius: 9,
-        padding: 14,
-        opacity: .75
-      }
-    }, /*#__PURE__*/React.createElement("div", {
-      style: {
-        fontWeight: 700,
-        color: s.color,
-        fontSize: 13,
-        marginBottom: 4
-      }
-    }, s.name), /*#__PURE__*/React.createElement("div", {
-      style: {
-        fontSize: 12,
-        color: muted,
-        marginBottom: 6
-      }
-    }, sc.length, " clases \xB7 ", occ(s.id), "% ocupaci\xF3n"), /*#__PURE__*/React.createElement("div", {
-      style: {
-        background: "#e2e8f0",
-        borderRadius: 20,
-        height: 6,
-        overflow: "hidden"
-      }
-    }, /*#__PURE__*/React.createElement("div", {
-      style: {
-        width: `${occ(s.id)}%`,
-        background: s.color,
-        height: "100%",
-        borderRadius: 20
-      }
-    })));
-  })));
+  const cs=sedes.find(s=>s.id===sede);
+  const sedeAll=allClasses.filter(c=>c.sede===sede);
+  return(
+    <div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(130px,1fr))",gap:12,marginBottom:20}}>
+        {[{l:"Clases visibles",v:classes.length,c:"#185FA5"},{l:"Docentes activos",v:new Set(classes.map(c=>c.docente)).size,c:"#0F6E56"},{l:"Semestres",v:new Set(classes.map(c=>c.semestre)).size,c:"#D85A30"},{l:"Total sede",v:sedeAll.length,c:"#7F77DD"}].map(s=>(
+          <div key={s.l} style={{background:surface,border:`1px solid ${border}`,borderRadius:9,padding:"14px 16px"}}>
+            <div style={{fontSize:11,color:muted,marginBottom:4}}>{s.l}</div>
+            <div style={{fontSize:28,fontWeight:700,color:s.c}}>{s.v}</div>
+          </div>
+        ))}
+      </div>
+      {cs&&(
+        <div style={{background:surface,border:`1px solid ${border}`,borderRadius:9,padding:16,marginBottom:14}}>
+          <div style={{fontWeight:700,color:cs.color,fontSize:14,marginBottom:4}}>{cs.name}</div>
+          <div style={{fontSize:12,color:muted,marginBottom:8}}>{sedeAll.length} clases · {occ(sede)}% ocupación</div>
+          <div style={{background:"#e2e8f0",borderRadius:20,height:8,overflow:"hidden"}}><div style={{width:`${occ(sede)}%`,background:cs.color,height:"100%",borderRadius:20}}/></div>
+          <div style={{marginTop:10}}>{docentes.map(d=>{const n=sedeAll.filter(c=>c.docente===d.id).length;const h=docHours(d.id,sedeAll);return n>0?<div key={d.id} style={{color:muted,fontSize:12,marginBottom:2}}>· {d.name}: {n} clase{n>1?"s":""} ({h}h)</div>:null;})}</div>
+        </div>
+      )}
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(200px,1fr))",gap:12}}>
+        {sedes.filter(s=>s.id!==sede).map(s=>{
+          const sc=allClasses.filter(c=>c.sede===s.id);
+          return(
+            <div key={s.id} style={{background:surface,border:`1px solid ${border}`,borderRadius:9,padding:14,opacity:.75}}>
+              <div style={{fontWeight:700,color:s.color,fontSize:13,marginBottom:4}}>{s.name}</div>
+              <div style={{fontSize:12,color:muted,marginBottom:6}}>{sc.length} clases · {occ(s.id)}% ocupación</div>
+              <div style={{background:"#e2e8f0",borderRadius:20,height:6,overflow:"hidden"}}><div style={{width:`${occ(s.id)}%`,background:s.color,height:"100%",borderRadius:20}}/></div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
 }
-function FilterBar({
-  tab,
-  sede,
-  setSede,
-  sedes,
-  filterDocente,
-  setFilterDocente,
-  filterSemestre,
-  setFilterSemestre,
-  filterSalon,
-  setFilterSalon,
-  jornadasOn,
-  setJornadasOn,
-  docentes,
-  salones,
-  border,
-  text,
-  muted,
-  surface,
-  canEdit,
-  onNewClase
-}) {
-  const sedeColor = sedes.find(s => s.id === sede)?.color || "#185FA5";
-  const SedeSelect = () => /*#__PURE__*/React.createElement("select", {
-    value: sede,
-    onChange: e => setSede(e.target.value),
-    style: {
-      borderRadius: 6,
-      border: `1px solid ${border}`,
-      padding: "5px 10px",
-      background: surface,
-      color: text,
-      fontSize: 13,
-      fontWeight: 600
-    }
-  }, /*#__PURE__*/React.createElement("option", {
-    value: ""
-  }, "\u2014 Selecciona una sede \u2014"), [...sedes].sort((a, b) => a.name.localeCompare(b.name)).map(s => /*#__PURE__*/React.createElement("option", {
-    key: s.id,
-    value: s.id
-  }, s.name)));
-  if (tab === "gestion" || tab === "stats") return null;
-  return /*#__PURE__*/React.createElement("div", {
-    style: {
-      background: surface,
-      borderBottom: `1px solid ${border}`,
-      padding: "10px 16px",
-      display: "flex",
-      gap: 10,
-      alignItems: "center",
-      flexWrap: "wrap"
-    }
-  }, /*#__PURE__*/React.createElement(SedeSelect, null), tab === "grilla" && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
-    style: {
-      width: 1,
-      height: 24,
-      background: border,
-      margin: "0 2px"
-    }
-  }), /*#__PURE__*/React.createElement("span", {
-    style: {
-      fontSize: 12,
-      color: muted,
-      fontWeight: 600
-    }
-  }, "Jornadas:"), JORNADAS.map(j => {
-    const on = jornadasOn[j.id];
-    return /*#__PURE__*/React.createElement("button", {
-      key: j.id,
-      onClick: () => setJornadasOn(p => ({
-        ...p,
-        [j.id]: !p[j.id]
-      })),
-      style: {
-        padding: "4px 12px",
-        borderRadius: 16,
-        border: `2px solid ${j.color}`,
-        cursor: "pointer",
-        fontSize: 12,
-        fontWeight: 600,
-        background: on ? j.color : "transparent",
-        color: on ? "#fff" : j.color
-      }
-    }, j.label);
-  }), /*#__PURE__*/React.createElement("div", {
-    style: {
-      width: 1,
-      height: 24,
-      background: border,
-      margin: "0 2px"
-    }
-  }), /*#__PURE__*/React.createElement("select", {
-    value: filterSemestre,
-    onChange: e => setFilterSemestre(e.target.value),
-    style: {
-      borderRadius: 6,
-      border: `1px solid ${border}`,
-      padding: "5px 10px",
-      background: surface,
-      color: text,
-      fontSize: 13
-    }
-  }, /*#__PURE__*/React.createElement("option", {
-    value: ""
-  }, "Todos los semestres"), SEMESTRES.map(s => /*#__PURE__*/React.createElement("option", {
-    key: s,
-    value: s
-  }, "Semestre ", s))), /*#__PURE__*/React.createElement("select", {
-    value: filterDocente,
-    onChange: e => setFilterDocente(e.target.value),
-    style: {
-      borderRadius: 6,
-      border: `1px solid ${border}`,
-      padding: "5px 10px",
-      background: surface,
-      color: text,
-      fontSize: 13
-    }
-  }, /*#__PURE__*/React.createElement("option", {
-    value: ""
-  }, "Todos los docentes"), [...docentes].sort((a, b) => a.name.localeCompare(b.name)).map(d => /*#__PURE__*/React.createElement("option", {
-    key: d.id,
-    value: d.id
-  }, d.name))), /*#__PURE__*/React.createElement("select", {
-    value: filterSalon,
-    onChange: e => setFilterSalon(e.target.value),
-    style: {
-      borderRadius: 6,
-      border: `1px solid ${border}`,
-      padding: "5px 10px",
-      background: surface,
-      color: text,
-      fontSize: 13
-    }
-  }, /*#__PURE__*/React.createElement("option", {
-    value: ""
-  }, "Todos los salones"), [...(salones[sede] || [])].sort((a, b) => a.localeCompare(b)).map(s => /*#__PURE__*/React.createElement("option", {
-    key: s,
-    value: s
-  }, s)))), tab === "semestre" && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
-    style: {
-      width: 1,
-      height: 24,
-      background: border,
-      margin: "0 2px"
-    }
-  }), /*#__PURE__*/React.createElement(PillButtons, {
-    options: SEMESTRES.map(s => ({
-      label: `Sem. ${s}`,
-      value: s
-    })),
-    value: filterSemestre,
-    onChange: setFilterSemestre,
-    color: sedeColor,
-    muted: muted
-  })), tab === "docente" && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
-    style: {
-      width: 1,
-      height: 24,
-      background: border,
-      margin: "0 2px"
-    }
-  }), /*#__PURE__*/React.createElement("button", {
-    onClick: () => setFilterDocente(filterDocente === "pendiente" ? "" : "pendiente"),
-    style: {
-      padding: "5px 14px",
-      borderRadius: 16,
-      border: `2px solid #dc2626`,
-      cursor: "pointer",
-      fontSize: 12,
-      fontWeight: 600,
-      background: filterDocente === "pendiente" ? "#dc2626" : "transparent",
-      color: filterDocente === "pendiente" ? "#fff" : "#dc2626"
-    }
-  }, "\u26A0 Pendientes"), /*#__PURE__*/React.createElement(PillButtons, {
-    options: [...docentes].sort((a, b) => a.name.localeCompare(b.name)).map(d => ({
-      label: d.name.split(" ").slice(-2).join(" "),
-      value: d.id
-    })),
-    value: filterDocente,
-    onChange: setFilterDocente,
-    color: sedeColor,
-    muted: muted
-  })), tab === "salon" && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
-    style: {
-      width: 1,
-      height: 24,
-      background: border,
-      margin: "0 2px"
-    }
-  }), /*#__PURE__*/React.createElement("button", {
-    onClick: () => setFilterSalon(filterSalon === "pendiente" ? "" : "pendiente"),
-    style: {
-      padding: "5px 14px",
-      borderRadius: 16,
-      border: `2px solid #dc2626`,
-      cursor: "pointer",
-      fontSize: 12,
-      fontWeight: 600,
-      background: filterSalon === "pendiente" ? "#dc2626" : "transparent",
-      color: filterSalon === "pendiente" ? "#fff" : "#dc2626"
-    }
-  }, "\u26A0 Pendientes"), /*#__PURE__*/React.createElement(PillButtons, {
-    options: [...(salones[sede] || [])].sort((a, b) => a.localeCompare(b)).map(s => ({
-      label: s,
-      value: s
-    })),
-    value: filterSalon,
-    onChange: setFilterSalon,
-    color: sedeColor,
-    muted: muted
-  })), /*#__PURE__*/React.createElement("div", {
-    style: {
-      flex: 1
-    }
-  }), canEdit && /*#__PURE__*/React.createElement("button", {
-    onClick: onNewClase,
-    style: {
-      background: "#185FA5",
-      color: "#fff",
-      border: "none",
-      borderRadius: 7,
-      padding: "7px 18px",
-      fontWeight: 600,
-      cursor: "pointer",
-      fontSize: 13
-    }
-  }, "+ Nueva Clase"));
+
+function FilterBar({tab,sede,setSede,sedes,filterDocente,setFilterDocente,filterSemestre,setFilterSemestre,filterSalon,setFilterSalon,jornadasOn,setJornadasOn,docentes,salones,border,text,muted,surface,canEdit,onNewClase,onNewBloqueo}){
+  const sedeColor=sedes.find(s=>s.id===sede)?.color||"#185FA5";
+  const SedeSelect=()=>(
+    <select value={sede} onChange={e=>setSede(e.target.value)} style={{borderRadius:6,border:`1px solid ${border}`,padding:"5px 10px",background:surface,color:text,fontSize:13,fontWeight:600}}>
+      <option value="">— Selecciona una sede —</option>
+      {[...sedes].sort((a,b)=>a.name.localeCompare(b.name)).map(s=><option key={s.id} value={s.id}>{s.name}</option>)}
+    </select>
+  );
+  if(tab==="gestion"||tab==="stats") return null;
+  return(
+    <div style={{background:surface,borderBottom:`1px solid ${border}`,padding:"10px 16px",display:"flex",gap:10,alignItems:"center",flexWrap:"wrap"}}>
+      <SedeSelect/>
+      {tab==="grilla"&&(
+        <>
+          <div style={{width:1,height:24,background:border,margin:"0 2px"}}/>
+          <span style={{fontSize:12,color:muted,fontWeight:600}}>Jornadas:</span>
+          {JORNADAS.map(j=>{const on=jornadasOn[j.id];return(
+            <button key={j.id} onClick={()=>setJornadasOn(p=>({...p,[j.id]:!p[j.id]}))}
+              style={{padding:"4px 12px",borderRadius:16,border:`2px solid ${j.color}`,cursor:"pointer",fontSize:12,fontWeight:600,background:on?j.color:"transparent",color:on?"#fff":j.color}}>
+              {j.label}
+            </button>
+          );})}
+          <div style={{width:1,height:24,background:border,margin:"0 2px"}}/>
+          <select value={filterSemestre} onChange={e=>setFilterSemestre(e.target.value)} style={{borderRadius:6,border:`1px solid ${border}`,padding:"5px 10px",background:surface,color:text,fontSize:13}}>
+            <option value="">Todos los semestres</option>
+            {SEMESTRES.map(s=><option key={s} value={s}>Semestre {s}</option>)}
+          </select>
+          <select value={filterDocente} onChange={e=>setFilterDocente(e.target.value)} style={{borderRadius:6,border:`1px solid ${border}`,padding:"5px 10px",background:surface,color:text,fontSize:13}}>
+            <option value="">Todos los docentes</option>
+            {[...docentes].sort((a,b)=>a.name.localeCompare(b.name)).map(d=><option key={d.id} value={d.id}>{d.name}</option>)}
+          </select>
+          <select value={filterSalon} onChange={e=>setFilterSalon(e.target.value)} style={{borderRadius:6,border:`1px solid ${border}`,padding:"5px 10px",background:surface,color:text,fontSize:13}}>
+            <option value="">Todos los salones</option>
+            {[...(salones[sede]||[])].sort((a,b)=>a.localeCompare(b)).map(s=><option key={s} value={s}>{s}</option>)}
+          </select>
+        </>
+      )}
+      {tab==="semestre"&&(
+        <>
+          <div style={{width:1,height:24,background:border,margin:"0 2px"}}/>
+          <PillButtons options={SEMESTRES.map(s=>({label:`Sem. ${s}`,value:s}))} value={filterSemestre} onChange={setFilterSemestre} color={sedeColor} muted={muted}/>
+        </>
+      )}
+      {tab==="docente"&&(
+        <>
+          <div style={{width:1,height:24,background:border,margin:"0 2px"}}/>
+          <button
+            onClick={()=>setFilterDocente(filterDocente==="pendiente"?"":"pendiente")}
+            style={{padding:"5px 14px",borderRadius:16,border:`2px solid #dc2626`,cursor:"pointer",fontSize:12,fontWeight:600,
+              background:filterDocente==="pendiente"?"#dc2626":"transparent",color:filterDocente==="pendiente"?"#fff":"#dc2626"}}>
+            ⚠ Pendientes
+          </button>
+          <PillButtons options={[...docentes].sort((a,b)=>a.name.localeCompare(b.name)).map(d=>({label:d.name.split(" ").slice(-2).join(" "),value:d.id}))} value={filterDocente} onChange={setFilterDocente} color={sedeColor} muted={muted}/>
+        </>
+      )}
+      {tab==="salon"&&(
+        <>
+          <div style={{width:1,height:24,background:border,margin:"0 2px"}}/>
+          <button
+            onClick={()=>setFilterSalon(filterSalon==="pendiente"?"":"pendiente")}
+            style={{padding:"5px 14px",borderRadius:16,border:`2px solid #dc2626`,cursor:"pointer",fontSize:12,fontWeight:600,
+              background:filterSalon==="pendiente"?"#dc2626":"transparent",color:filterSalon==="pendiente"?"#fff":"#dc2626"}}>
+            ⚠ Pendientes
+          </button>
+          <PillButtons options={[...(salones[sede]||[])].sort((a,b)=>a.localeCompare(b)).map(s=>({label:s,value:s}))} value={filterSalon} onChange={setFilterSalon} color={sedeColor} muted={muted}/>
+        </>
+      )}
+      <div style={{flex:1}}/>
+      {canEdit&&(
+        <div style={{display:"flex",gap:6}}>
+          <button onClick={onNewClase} style={{background:"#185FA5",color:"#fff",border:"none",borderRadius:7,padding:"7px 18px",fontWeight:600,cursor:"pointer",fontSize:13}}>+ Nueva Clase</button>
+          <button onClick={onNewBloqueo} style={{background:"#dc2626",color:"#fff",border:"none",borderRadius:7,padding:"7px 14px",fontWeight:600,cursor:"pointer",fontSize:13}}>🔒 Bloquear</button>
+        </div>
+      )}
+    </div>
+  );
 }
-function App() {
-  const [classes, setClasses] = useState(INIT_CLASSES);
+
+
+function BloqueoModal({docentes,onSave,onClose,surface,border,text,muted}){
+  const [docente,setDocente]=useState(docentes[0]?.id||"");
+  const [dias,setDias]=useState([]);
+  const [horaInicio,setHoraInicio]=useState("08:00");
+  const [horaFin,setHoraFin]=useState("10:00");
+  const [motivo,setMotivo]=useState("");
+  const toggleDia=(d)=>setDias(ds=>ds.includes(d)?ds.filter(x=>x!==d):[...ds,d]);
+  const save=()=>{
+    if(!docente||dias.length===0)return;
+    if(timeToMin(horaFin)<=timeToMin(horaInicio))return;
+    onSave({id:"b"+Date.now(),docente,dias,horaInicio,horaFin,motivo});
+  };
+  return(
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.6)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1200}}>
+      <div style={{background:surface,borderRadius:12,padding:24,width:460,maxWidth:"95vw",border:`1px solid ${border}`}}>
+        <div style={{display:"flex",justifyContent:"space-between",marginBottom:18}}>
+          <h3 style={{margin:0,fontSize:16,fontWeight:700,color:text}}>🔒 Bloquear disponibilidad</h3>
+          <button onClick={onClose} style={{background:"transparent",border:"none",cursor:"pointer",fontSize:20,color:muted}}>×</button>
+        </div>
+        <div style={{display:"flex",flexDirection:"column",gap:12}}>
+          <div>
+            <label style={{fontSize:12,color:muted,display:"block",marginBottom:4}}>Docente</label>
+            <select value={docente} onChange={e=>setDocente(e.target.value)}
+              style={{width:"100%",padding:"7px 10px",borderRadius:6,border:`1px solid ${border}`,background:surface,color:text,fontSize:13}}>
+              {docentes.map(d=><option key={d.id} value={d.id}>{d.name}</option>)}
+            </select>
+          </div>
+          <div>
+            <label style={{fontSize:12,color:muted,display:"block",marginBottom:6}}>Días bloqueados</label>
+            <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+              {["Lunes","Martes","Miércoles","Jueves","Viernes","Sábado","Domingo"].map(d=>{
+                const on=dias.includes(d);
+                return(
+                  <button key={d} onClick={()=>toggleDia(d)}
+                    style={{padding:"5px 12px",borderRadius:16,border:`2px solid ${on?"#dc2626":"#cbd5e1"}`,
+                    background:on?"#fee2e2":"transparent",color:on?"#dc2626":muted,
+                    fontWeight:on?700:400,cursor:"pointer",fontSize:12}}>
+                    {d.slice(0,3)}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+            <div>
+              <label style={{fontSize:12,color:muted,display:"block",marginBottom:4}}>Hora inicio</label>
+              <select value={horaInicio} onChange={e=>setHoraInicio(e.target.value)}
+                style={{width:"100%",padding:"7px 10px",borderRadius:6,border:`1px solid ${border}`,background:surface,color:text,fontSize:13}}>
+                {["06:00","07:00","08:00","09:00","10:00","11:00","12:00","13:00","14:00","15:00","16:00","17:00","18:00","19:00","20:00","21:00"].map(h=><option key={h}>{h}</option>)}
+              </select>
+            </div>
+            <div>
+              <label style={{fontSize:12,color:muted,display:"block",marginBottom:4}}>Hora fin</label>
+              <select value={horaFin} onChange={e=>setHoraFin(e.target.value)}
+                style={{width:"100%",padding:"7px 10px",borderRadius:6,border:`1px solid ${border}`,background:surface,color:text,fontSize:13}}>
+                {["07:00","08:00","09:00","10:00","11:00","12:00","13:00","14:00","15:00","16:00","17:00","18:00","19:00","20:00","21:00","22:00"].filter(h=>h>horaInicio).map(h=><option key={h}>{h}</option>)}
+              </select>
+            </div>
+          </div>
+          <div>
+            <label style={{fontSize:12,color:muted,display:"block",marginBottom:4}}>Motivo (opcional)</label>
+            <input value={motivo} onChange={e=>setMotivo(e.target.value)} placeholder="Ej: Cita médica, reunión..."
+              style={{width:"100%",padding:"7px 10px",borderRadius:6,border:`1px solid ${border}`,background:surface,color:text,fontSize:13}}/>
+          </div>
+        </div>
+        {dias.length===0&&<div style={{marginTop:10,fontSize:12,color:"#b45309"}}>⚠ Selecciona al menos un día.</div>}
+        <div style={{display:"flex",gap:8,marginTop:18,justifyContent:"flex-end"}}>
+          <button onClick={onClose} style={{background:"transparent",border:`1px solid ${border}`,borderRadius:7,padding:"7px 14px",cursor:"pointer",fontSize:13,color:muted}}>Cancelar</button>
+          <button onClick={save} disabled={dias.length===0}
+            style={{background:dias.length>0?"#dc2626":"#e2e8f0",color:dias.length>0?"#fff":"#94a3b8",border:"none",borderRadius:7,padding:"7px 18px",fontWeight:700,cursor:dias.length>0?"pointer":"default",fontSize:13}}>
+            Bloquear
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function App(){
+  const [classes,  setClasses]  = useState(INIT_CLASSES);
   const [docentes, setDocentes] = useState(INIT_DOCENTES);
   const [materias, setMaterias] = useState(INIT_MATERIAS);
-  const [salones, setSalones] = useState(INIT_SALONES);
-  const [sedes, setSedes] = useState(INIT_SEDES);
+  const [salones,  setSalones]  = useState(INIT_SALONES);
+  const [sedes,    setSedes]    = useState(INIT_SEDES);
+  const [bloqueos, setBloqueos] = useState([]);
   const [storageReady, setStorageReady] = useState(false);
   const [saving, setSaving] = useState(false);
   const initialized = useRef(false);
-  useEffect(() => {
-    jsonbinLoad().then(record => {
-      if (record) {
-        if (record.classes) setClasses(record.classes);
-        if (record.docentes) setDocentes(record.docentes);
-        if (record.materias) setMaterias(record.materias);
-        if (record.salones) setSalones(record.salones);
-        if (record.sedes) setSedes(record.sedes);
+
+  useEffect(()=>{
+    jsonbinLoad().then(record=>{
+      if(record){
+        if(record.classes)   setClasses(record.classes);
+        if(record.docentes)  setDocentes(record.docentes);
+        if(record.materias)  setMaterias(record.materias);
+        if(record.salones)   setSalones(record.salones);
+        if(record.sedes)     setSedes(record.sedes);
+        if(record.bloqueos)  setBloqueos(record.bloqueos);
         // Backup en localStorage
-        try {
-          localStorage.setItem("horarios_backup", JSON.stringify(record));
-        } catch (_) {}
+        try{localStorage.setItem("horarios_backup",JSON.stringify(record));}catch(_){}
       } else {
         // Si JSONBin falla, intentar recuperar del backup local
-        try {
-          const backup = localStorage.getItem("horarios_backup");
-          if (backup) {
-            const r = JSON.parse(backup);
-            if (r.classes) setClasses(r.classes);
-            if (r.docentes) setDocentes(r.docentes);
-            if (r.materias) setMaterias(r.materias);
-            if (r.salones) setSalones(r.salones);
-            if (r.sedes) setSedes(r.sedes);
+        try{
+          const backup=localStorage.getItem("horarios_backup");
+          if(backup){
+            const r=JSON.parse(backup);
+            if(r.classes)   setClasses(r.classes);
+            if(r.docentes)  setDocentes(r.docentes);
+            if(r.materias)  setMaterias(r.materias);
+            if(r.salones)   setSalones(r.salones);
+            if(r.sedes)     setSedes(r.sedes);
           }
-        } catch (_) {}
+        }catch(_){}
       }
       setStorageReady(true);
-      initialized.current = true;
+      initialized.current=true;
     });
-  }, []);
-  useEffect(() => {
-    if (!storageReady || !initialized.current) return;
+  },[]);
+
+  useEffect(()=>{
+    if(!storageReady||!initialized.current)return;
     setSaving(true);
-    const data = {
-      classes,
-      docentes,
-      materias,
-      salones,
-      sedes
-    };
-    jsonbinSave(data).then(ok => {
-      if (ok) try {
-        localStorage.setItem("horarios_backup", JSON.stringify(data));
-      } catch (_) {}
-    }).finally(() => setTimeout(() => setSaving(false), 400));
-  }, [classes, docentes, materias, salones, sedes]);
-  const [tab, setTab] = useState("grilla");
-  const [gTab, setGTab] = useState("docentes");
-  const [role, setRole] = useState(null);
-  const [showRoleModal, setShowRoleModal] = useState(true);
-  const [roleTarget, setRoleTarget] = useState("");
-  const [pwInput, setPwInput] = useState("");
-  const [pwError, setPwError] = useState(false);
-  const [darkMode, setDarkMode] = useState(false);
-  const [filterDocente, setFilterDocente] = useState("");
-  const [filterSemestre, setFilterSemestre] = useState("");
-  const [filterSalon, setFilterSalon] = useState("");
-  const [jornadasOn, setJornadasOn] = useState({
-    manana: true,
-    tarde: true,
-    noche: true
-  });
-  const [showClase, setShowClase] = useState(false);
-  const [showDoc, setShowDoc] = useState(false);
-  const [showSede, setShowSede] = useState(false);
-  const [editClaseId, setEditClaseId] = useState(null);
-  const [editDocId, setEditDocId] = useState(null);
+    const data={classes,docentes,materias,salones,sedes,bloqueos};
+    jsonbinSave(data).then(ok=>{
+      if(ok) try{localStorage.setItem("horarios_backup",JSON.stringify(data));}catch(_){}
+    }).finally(()=>setTimeout(()=>setSaving(false),400));
+  },[classes,docentes,materias,salones,sedes,bloqueos]);
+
+  const [tab,            setTab]           = useState("grilla");
+  const [gTab,           setGTab]          = useState("docentes");
+  const [role,           setRole]          = useState(null);
+  const [showRoleModal,  setShowRoleModal]  = useState(true);
+  const [roleTarget,     setRoleTarget]     = useState("");
+  const [pwInput,        setPwInput]        = useState("");
+  const [pwError,        setPwError]        = useState(false);
+  const [darkMode,       setDarkMode]      = useState(false);
+  const [filterDocente,  setFilterDocente] = useState("");
+  const [filterSemestre, setFilterSemestre]= useState("");
+  const [filterSalon,    setFilterSalon]   = useState("");
+  const [jornadasOn,     setJornadasOn]    = useState({manana:true,tarde:true,noche:true});
+  const [showBloqueo,setShowBloqueo]= useState(false);
+  const [showClase,  setShowClase]  = useState(false);
+  const [showDoc,    setShowDoc]    = useState(false);
+  const [showSede,   setShowSede]   = useState(false);
+  const [editClaseId,setEditClaseId]= useState(null);
+  const [editDocId,  setEditDocId]  = useState(null);
   const [editSedeId, setEditSedeId] = useState(null);
-  const [claseForm, setClaseForm] = useState({});
-  const [docForm, setDocForm] = useState({
-    name: "",
-    email: ""
-  });
-  const [sedeForm, setSedeForm] = useState({
-    name: ""
-  });
-  const [newSalon, setNewSalon] = useState("");
-  const [dragId, setDragId] = useState(null);
+  const [claseForm,  setClaseForm]  = useState({});
+  const [docForm,    setDocForm]    = useState({name:"",email:""});
+  const [sedeForm,   setSedeForm]   = useState({name:""});
+  const [newSalon,   setNewSalon]   = useState("");
+  const [dragId,     setDragId]     = useState(null);
   const [dropTarget, setDropTarget] = useState(null);
-  const [toast, setToast] = useState(null);
-  const [sede, setSede] = useState("");
-  const canEdit = role === "admin" || role === "coordinador";
-  const showToast = (msg, type = "success") => {
-    setToast({
-      msg,
-      type
-    });
-    setTimeout(() => setToast(null), 3000);
-  };
-  const activeHours = useMemo(() => ALL_HOURS.filter(h => JORNADAS.some(j => jornadasOn[j.id] && j.range.includes(h))), [jornadasOn]);
-  const filtered = classes.filter(c => {
-    const isDocenteTab = tab === "docente";
-    const isSalonTab = tab === "salon";
-    const pendienteDocente = isDocenteTab && filterDocente === "pendiente";
-    const pendienteSalon = isSalonTab && filterSalon === "pendiente";
+  const [toast,      setToast]      = useState(null);
+  const [sede,       setSede]       = useState("");
+
+  const canEdit=role==="admin"||role==="coordinador";
+  const showToast=(msg,type="success")=>{setToast({msg,type});setTimeout(()=>setToast(null),3000);};
+  const activeHours=useMemo(()=>ALL_HOURS.filter(h=>JORNADAS.some(j=>jornadasOn[j.id]&&j.range.includes(h))),[jornadasOn]);
+
+  const filtered=classes.filter(c=>{
+    const isDocenteTab=tab==="docente";
+    const isSalonTab=tab==="salon";
+    const pendienteDocente=isDocenteTab&&filterDocente==="pendiente";
+    const pendienteSalon=isSalonTab&&filterSalon==="pendiente";
     // Pendiente con sede: filtrar por sede
-    if (pendienteDocente && sede && c.sede !== sede) return false;
-    if (pendienteSalon && sede && c.sede !== sede) return false;
+    if(pendienteDocente&&sede&&c.sede!==sede)return false;
+    if(pendienteSalon&&sede&&c.sede!==sede)return false;
     // Pestañas normales sin pendiente
-    if (!isDocenteTab && !isSalonTab && c.sede !== sede) return false;
-    if (isDocenteTab && !pendienteDocente && sede && c.sede !== sede) return false;
-    if (isSalonTab && !pendienteSalon && sede && c.sede !== sede) return false;
-    if (filterDocente && c.docente !== filterDocente) return false;
-    if (filterSemestre && c.semestre !== filterSemestre) return false;
-    if (filterSalon && c.salon !== filterSalon) return false;
-    if (tab === "grilla" && !jornadasOn[c.jornada]) {
-      if ((c.dia === "Sábado" || c.dia === "Domingo") && jornadasOn["noche"]) return true;
+    if(!isDocenteTab&&!isSalonTab&&c.sede!==sede)return false;
+    if(isDocenteTab&&!pendienteDocente&&sede&&c.sede!==sede)return false;
+    if(isSalonTab&&!pendienteSalon&&sede&&c.sede!==sede)return false;
+    if(filterDocente&&c.docente!==filterDocente)return false;
+    if(filterSemestre&&c.semestre!==filterSemestre)return false;
+    if(filterSalon&&c.salon!==filterSalon)return false;
+    if(tab==="grilla"&&!jornadasOn[c.jornada]){
+      if((c.dia==="Sábado"||c.dia==="Domingo")&&jornadasOn["noche"])return true;
       return false;
     }
     return true;
   });
-  const ann = cls => {
-    const sedeName = sedes.find(s => s.id === cls.sede)?.name || "";
-    const docenteName = docentes.find(d => d.id === cls.docente)?.name.split(" ").slice(-1)[0] || "";
-    const showSede = tab === "docente" || tab === "salon" && filterSalon === "pendiente" || tab === "docente" && filterDocente === "pendiente";
-    return {
-      ...cls,
-      _doc: showSede ? sedeName : docenteName
-    };
+  const ann=cls=>{
+    const sedeName=sedes.find(s=>s.id===cls.sede)?.name||"";
+    const docenteName=docentes.find(d=>d.id===cls.docente)?.name.split(" ").slice(-1)[0]||"";
+    const showSede=tab==="docente"||(tab==="salon"&&filterSalon==="pendiente")||(tab==="docente"&&filterDocente==="pendiente");
+    return{...cls,_doc:showSede?sedeName:docenteName};
   };
-  const jCol = cls => jornadaOf(cls.horaInicio, cls.dia)?.color || "#888";
-  const defaultForm = () => {
-    const m0 = materias[0];
-    return {
-      materia: m0?.nombre || "",
-      grupo: "A",
-      docente: docentes[0]?.id || "",
-      sede,
-      salon: (salones[sede] || [])[0] || "",
-      dia: "Lunes",
-      horaInicio: "08:00",
-      horaFin: m0 ? minToTime(timeToMin("08:00") + m0.horas * 60) : "10:00",
-      semestre: m0?.semestre || "1",
-      jornada: jornadaOf("08:00", "Lunes")?.id || "manana"
-    };
+  const jCol=cls=>jornadaOf(cls.horaInicio,cls.dia)?.color||"#888";
+
+  const defaultForm=()=>{
+    const m0=materias[0];
+    return{materia:m0?.nombre||"",grupo:"A",docente:docentes[0]?.id||"",sede,salon:(salones[sede]||[])[0]||"",dia:"Lunes",horaInicio:"08:00",horaFin:m0?minToTime(timeToMin("08:00")+m0.horas*60):"10:00",semestre:m0?.semestre||"1",jornada:jornadaOf("08:00","Lunes")?.id||"manana"};
   };
-  const handleRoleConfirm = () => {
-    if (!roleTarget) return;
-    if (pwInput !== ROLE_PASSWORDS[roleTarget]) {
-      setPwError(true);
-      return;
-    }
-    setRole(roleTarget);
-    setShowRoleModal(false);
-    showToast(`Bienvenido, ${ROLES[roleTarget]}.`);
+
+  const handleRoleConfirm=()=>{
+    if(!roleTarget)return;
+    if(pwInput!==ROLE_PASSWORDS[roleTarget]){setPwError(true);return;}
+    setRole(roleTarget);setShowRoleModal(false);showToast(`Bienvenido, ${ROLES[roleTarget]}.`);
   };
-  const openNewClase = () => {
-    if (!canEdit) return;
-    setEditClaseId(null);
-    setClaseForm(defaultForm());
-    setShowClase(true);
-  };
-  const openEditClase = cls => {
-    if (!canEdit) return;
-    setEditClaseId(cls.id);
-    setClaseForm({
-      materia: cls.materia,
-      semestre: cls.semestre,
-      jornada: cls.jornada,
-      grupo: cls.grupo,
-      docente: cls.docente,
-      sede: cls.sede,
-      salon: cls.salon,
-      dia: cls.dia,
-      horaInicio: cls.horaInicio,
-      horaFin: cls.horaFin
-    });
-    setShowClase(true);
-  };
-  const saveClase = f => {
-    const r = validateConflicts(f, classes, editClaseId, docentes);
-    if (!r.ok) {
-      showToast(r.msg, "danger");
-      return;
-    }
-    if (editClaseId) {
-      setClasses(cs => cs.map(c => c.id === editClaseId ? {
-        ...f,
-        id: editClaseId
-      } : c));
-      showToast("Clase actualizada.");
-    } else {
-      setClasses(cs => [...cs, {
-        ...f,
-        id: "c" + Date.now()
-      }]);
-      showToast("Clase creada.");
-    }
+
+  const openNewClase=()=>{if(!canEdit)return;setEditClaseId(null);setClaseForm(defaultForm());setShowClase(true);};
+  const openEditClase=cls=>{if(!canEdit)return;setEditClaseId(cls.id);setClaseForm({materia:cls.materia,semestre:cls.semestre,jornada:cls.jornada,grupo:cls.grupo,docente:cls.docente,sede:cls.sede,salon:cls.salon,dia:cls.dia,horaInicio:cls.horaInicio,horaFin:cls.horaFin});setShowClase(true);};
+  const saveClase=f=>{
+    const r=validateConflicts(f,classes,editClaseId,docentes,bloqueos);
+    if(!r.ok){showToast(r.msg,"danger");return;}
+    if(editClaseId){setClasses(cs=>cs.map(c=>c.id===editClaseId?{...f,id:editClaseId}:c));showToast("Clase actualizada.");}
+    else{setClasses(cs=>[...cs,{...f,id:"c"+Date.now()}]);showToast("Clase creada.");}
     setShowClase(false);
   };
-  const delClase = () => {
-    setClasses(cs => cs.filter(c => c.id !== editClaseId));
-    setShowClase(false);
-    showToast("Clase eliminada.", "danger");
+  const saveBloqueo=(b)=>{setBloqueos(bs=>[...bs,b]);setShowBloqueo(false);showToast("Bloqueo creado.");};
+  const delBloqueo=(id)=>{setBloqueos(bs=>bs.filter(b=>b.id!==id));showToast("Bloqueo eliminado.","danger");};
+  const delClase=()=>{setClasses(cs=>cs.filter(c=>c.id!==editClaseId));setShowClase(false);showToast("Clase eliminada.","danger");};
+
+  const openNewDoc=()=>{setEditDocId(null);setDocForm({name:"",email:""});setShowDoc(true);};
+  const openEditDoc=d=>{setEditDocId(d.id);setDocForm({name:d.name,email:d.email});setShowDoc(true);};
+  const saveDoc=()=>{
+    if(!docForm.name.trim()){showToast("Nombre obligatorio.","danger");return;}
+    if(editDocId)setDocentes(ds=>ds.map(d=>d.id===editDocId?{...d,...docForm}:d));
+    else setDocentes(ds=>[...ds,{id:"d"+Date.now(),...docForm}]);
+    showToast(editDocId?"Docente actualizado.":"Docente agregado.");setShowDoc(false);
   };
-  const openNewDoc = () => {
-    setEditDocId(null);
-    setDocForm({
-      name: "",
-      email: ""
-    });
-    setShowDoc(true);
+  const delDoc=()=>{
+    if(classes.some(c=>c.docente===editDocId)){showToast("Tiene clases asignadas.","danger");return;}
+    setDocentes(ds=>ds.filter(d=>d.id!==editDocId));setShowDoc(false);showToast("Eliminado.","danger");
   };
-  const openEditDoc = d => {
-    setEditDocId(d.id);
-    setDocForm({
-      name: d.name,
-      email: d.email
-    });
-    setShowDoc(true);
-  };
-  const saveDoc = () => {
-    if (!docForm.name.trim()) {
-      showToast("Nombre obligatorio.", "danger");
-      return;
-    }
-    if (editDocId) setDocentes(ds => ds.map(d => d.id === editDocId ? {
-      ...d,
-      ...docForm
-    } : d));else setDocentes(ds => [...ds, {
-      id: "d" + Date.now(),
-      ...docForm
-    }]);
-    showToast(editDocId ? "Docente actualizado." : "Docente agregado.");
-    setShowDoc(false);
-  };
-  const delDoc = () => {
-    if (classes.some(c => c.docente === editDocId)) {
-      showToast("Tiene clases asignadas.", "danger");
-      return;
-    }
-    setDocentes(ds => ds.filter(d => d.id !== editDocId));
-    setShowDoc(false);
-    showToast("Eliminado.", "danger");
-  };
-  const openNewSede = () => {
-    setEditSedeId(null);
-    setSedeForm({
-      name: ""
-    });
-    setShowSede(true);
-  };
-  const openEditSede = s => {
-    setEditSedeId(s.id);
-    setSedeForm({
-      name: s.name
-    });
-    setShowSede(true);
-  };
-  const saveSede = () => {
-    if (!sedeForm.name.trim()) {
-      showToast("Nombre obligatorio.", "danger");
-      return;
-    }
-    if (editSedeId) {
-      setSedes(ss => ss.map(s => s.id === editSedeId ? {
-        ...s,
-        name: sedeForm.name
-      } : s));
-      showToast("Sede actualizada.");
-    } else {
-      const id = "sede" + Date.now();
-      const color = SEDE_COLORS[sedes.length % SEDE_COLORS.length];
-      setSedes(ss => [...ss, {
-        id,
-        name: sedeForm.name,
-        color
-      }]);
-      setSalones(p => ({
-        ...p,
-        [id]: []
-      }));
-      showToast("Sede agregada.");
-    }
+
+  const openNewSede=()=>{setEditSedeId(null);setSedeForm({name:""});setShowSede(true);};
+  const openEditSede=s=>{setEditSedeId(s.id);setSedeForm({name:s.name});setShowSede(true);};
+  const saveSede=()=>{
+    if(!sedeForm.name.trim()){showToast("Nombre obligatorio.","danger");return;}
+    if(editSedeId){setSedes(ss=>ss.map(s=>s.id===editSedeId?{...s,name:sedeForm.name}:s));showToast("Sede actualizada.");}
+    else{const id="sede"+Date.now();const color=SEDE_COLORS[sedes.length%SEDE_COLORS.length];setSedes(ss=>[...ss,{id,name:sedeForm.name,color}]);setSalones(p=>({...p,[id]:[]}));showToast("Sede agregada.");}
     setShowSede(false);
   };
-  const delSede = () => {
-    if (classes.some(c => c.sede === editSedeId)) {
-      showToast("Tiene clases asignadas.", "danger");
-      return;
-    }
-    setSedes(ss => ss.filter(s => s.id !== editSedeId));
-    setSalones(p => {
-      const n = {
-        ...p
-      };
-      delete n[editSedeId];
-      return n;
-    });
-    if (sede === editSedeId) setSede(sedes.filter(s => s.id !== editSedeId)[0]?.id || "");
-    setShowSede(false);
-    showToast("Sede eliminada.", "danger");
+  const delSede=()=>{
+    if(classes.some(c=>c.sede===editSedeId)){showToast("Tiene clases asignadas.","danger");return;}
+    setSedes(ss=>ss.filter(s=>s.id!==editSedeId));setSalones(p=>{const n={...p};delete n[editSedeId];return n;});
+    if(sede===editSedeId)setSede(sedes.filter(s=>s.id!==editSedeId)[0]?.id||"");
+    setShowSede(false);showToast("Sede eliminada.","danger");
   };
-  const saveSalon = sid => {
-    const s = newSalon.trim();
-    if (!s) {
-      showToast("Ingresa un nombre.", "danger");
-      return;
-    }
-    const sedeId = sid || sede;
-    if ((salones[sedeId] || []).includes(s)) {
-      showToast("Ya existe.", "danger");
-      return;
-    }
-    setSalones(p => ({
-      ...p,
-      [sedeId]: [...(p[sedeId] || []), s]
-    }));
-    setNewSalon("");
-    showToast(`Salón ${s} agregado.`);
+  const saveSalon=(sid)=>{
+    const s=newSalon.trim();if(!s){showToast("Ingresa un nombre.","danger");return;}
+    const sedeId=sid||sede;
+    if((salones[sedeId]||[]).includes(s)){showToast("Ya existe.","danger");return;}
+    setSalones(p=>({...p,[sedeId]:[...(p[sedeId]||[]),s]}));setNewSalon("");showToast(`Salón ${s} agregado.`);
   };
-  const delSalon = (sid, sal) => {
-    if (classes.some(c => c.sede === sid && c.salon === sal)) {
-      showToast("Hay clases asignadas.", "danger");
-      return;
-    }
-    setSalones(p => ({
-      ...p,
-      [sid]: (p[sid] || []).filter(s => s !== sal)
-    }));
-    showToast(`${sal} eliminado.`, "danger");
+  const delSalon=(sid,sal)=>{
+    if(classes.some(c=>c.sede===sid&&c.salon===sal)){showToast("Hay clases asignadas.","danger");return;}
+    setSalones(p=>({...p,[sid]:(p[sid]||[]).filter(s=>s!==sal)}));showToast(`${sal} eliminado.`,"danger");
   };
-  const editSalonFn = (sid, oldName, newName) => {
-    const n = newName.trim();
-    if (!n || n === oldName) return;
-    if ((salones[sid] || []).includes(n)) {
-      showToast("Ya existe ese nombre.", "danger");
-      return;
-    }
-    setSalones(p => ({
-      ...p,
-      [sid]: (p[sid] || []).map(s => s === oldName ? n : s)
-    }));
-    setClasses(cs => cs.map(c => c.sede === sid && c.salon === oldName ? {
-      ...c,
-      salon: n
-    } : c));
+  const editSalonFn=(sid,oldName,newName)=>{
+    const n=newName.trim();if(!n||n===oldName)return;
+    if((salones[sid]||[]).includes(n)){showToast("Ya existe ese nombre.","danger");return;}
+    setSalones(p=>({...p,[sid]:(p[sid]||[]).map(s=>s===oldName?n:s)}));
+    setClasses(cs=>cs.map(c=>c.sede===sid&&c.salon===oldName?{...c,salon:n}:c));
     showToast(`Salón renombrado a ${n}.`);
   };
-  const dropCls = dragId && dropTarget ? classes.find(c => c.id === dragId) : null;
-  const dropValid = dropCls && dropTarget ? validateConflicts({
-    ...dropCls,
-    dia: dropTarget.dia,
-    horaInicio: dropTarget.hora,
-    horaFin: minToTime(timeToMin(dropTarget.hora) + timeToMin(dropCls.horaFin) - timeToMin(dropCls.horaInicio))
-  }, classes, dragId, docentes) : null;
-  const handleDrop = (dia, hora) => {
-    if (!dragId) return;
-    const cls = classes.find(c => c.id === dragId);
-    if (!cls) return;
-    const dur = timeToMin(cls.horaFin) - timeToMin(cls.horaInicio);
-    const upd = {
-      ...cls,
-      dia,
-      horaInicio: hora,
-      horaFin: minToTime(timeToMin(hora) + dur)
-    };
-    const r = validateConflicts(upd, classes, dragId, docentes);
-    if (!r.ok) showToast(r.msg, "danger");else {
-      setClasses(cs => cs.map(c => c.id === dragId ? upd : c));
-      showToast("Clase movida.");
-    }
-    setDragId(null);
-    setDropTarget(null);
+
+  const dropCls=dragId&&dropTarget?classes.find(c=>c.id===dragId):null;
+  const dropValid=dropCls&&dropTarget?validateConflicts({...dropCls,dia:dropTarget.dia,horaInicio:dropTarget.hora,horaFin:minToTime(timeToMin(dropTarget.hora)+timeToMin(dropCls.horaFin)-timeToMin(dropCls.horaInicio))},classes,dragId,docentes):null;
+  const handleDrop=(dia,hora)=>{
+    if(!dragId)return;const cls=classes.find(c=>c.id===dragId);if(!cls)return;
+    const dur=timeToMin(cls.horaFin)-timeToMin(cls.horaInicio);
+    const upd={...cls,dia,horaInicio:hora,horaFin:minToTime(timeToMin(hora)+dur)};
+    const r=validateConflicts(upd,classes,dragId,docentes,bloqueos);
+    if(!r.ok)showToast(r.msg,"danger");
+    else{setClasses(cs=>cs.map(c=>c.id===dragId?upd:c));showToast("Clase movida.");}
+    setDragId(null);setDropTarget(null);
   };
-  const bg = darkMode ? "#1a1a2e" : "#f7f8fc";
-  const surface = darkMode ? "#16213e" : "#fff";
-  const border = darkMode ? "#2d3561" : "#e5e7ef";
-  const text = darkMode ? "#e2e8f0" : "#1e293b";
-  const muted = darkMode ? "#94a3b8" : "#64748b";
-  const headerBg = darkMode ? "#0f3460" : "#f1f5f9";
-  const tabSt = a => ({
-    padding: "10px 16px",
-    border: "none",
-    borderBottom: a ? "2px solid #185FA5" : "2px solid transparent",
-    background: "transparent",
-    color: a ? "#185FA5" : muted,
-    fontWeight: a ? 600 : 400,
-    cursor: "pointer",
-    fontSize: 13,
-    whiteSpace: "nowrap"
-  });
-  return /*#__PURE__*/React.createElement("div", {
-    style: {
-      minHeight: "100vh",
-      background: bg,
-      color: text,
-      fontFamily: "system-ui,sans-serif",
-      fontSize: 14
-    }
-  }, !role && /*#__PURE__*/React.createElement("div", {
-    style: {
-      position: "fixed",
-      inset: 0,
-      background: "#0f172a",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      zIndex: 2000
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      background: "#1e293b",
-      borderRadius: 16,
-      padding: 36,
-      width: 400,
-      maxWidth: "95vw",
-      border: "1px solid #334155",
-      boxShadow: "0 25px 60px rgba(0,0,0,.6)"
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      textAlign: "center",
-      marginBottom: 28
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 40,
-      marginBottom: 8
-    }
-  }, "\uD83C\uDF93"), /*#__PURE__*/React.createElement("h1", {
-    style: {
-      margin: 0,
-      fontSize: 22,
-      fontWeight: 700,
-      color: "#f1f5f9"
-    }
-  }, "Horarios Audiovisuales"), /*#__PURE__*/React.createElement("p", {
-    style: {
-      margin: "6px 0 0",
-      fontSize: 13,
-      color: "#64748b"
-    }
-  }, "Ingresa con tu rol para continuar")), /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: "flex",
-      flexDirection: "column",
-      gap: 8,
-      marginBottom: 20
-    }
-  }, Object.entries(ROLES).map(([k, v]) => {
-    const active = roleTarget === k;
-    return /*#__PURE__*/React.createElement("button", {
-      key: k,
-      onClick: () => {
-        setRoleTarget(k);
-        setPwInput("");
-        setPwError(false);
-      },
-      style: {
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
-        padding: "11px 16px",
-        borderRadius: 9,
-        border: `2px solid ${active ? "#3b82f6" : "#334155"}`,
-        background: active ? "#1d3a5f" : "transparent",
-        cursor: "pointer",
-        textAlign: "left",
-        transition: "all .15s"
-      }
-    }, /*#__PURE__*/React.createElement("span", {
-      style: {
-        fontWeight: active ? 600 : 400,
-        color: active ? "#93c5fd" : "#cbd5e1",
-        fontSize: 14
-      }
-    }, v), /*#__PURE__*/React.createElement("span", {
-      style: {
-        fontSize: 12,
-        color: "#64748b"
-      }
-    }, "\uD83D\uDD12"));
-  })), roleTarget && /*#__PURE__*/React.createElement("div", {
-    style: {
-      marginBottom: 16
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 12,
-      color: "#64748b",
-      marginBottom: 6
-    }
-  }, "Contrase\xF1a para ", /*#__PURE__*/React.createElement("strong", {
-    style: {
-      color: "#93c5fd"
-    }
-  }, ROLES[roleTarget])), /*#__PURE__*/React.createElement("input", {
-    type: "password",
-    value: pwInput,
-    onChange: e => {
-      setPwInput(e.target.value);
-      setPwError(false);
-    },
-    onKeyDown: e => {
-      if (e.key === "Enter") handleRoleConfirm();
-    },
-    autoFocus: true,
-    placeholder: "Contrase\xF1a",
-    style: {
-      width: "100%",
-      padding: "10px 14px",
-      borderRadius: 8,
-      border: `1.5px solid ${pwError ? "#ef4444" : "#334155"}`,
-      background: "#0f172a",
-      color: "#f1f5f9",
-      fontSize: 14,
-      boxSizing: "border-box",
-      outline: "none"
-    }
-  }), pwError && /*#__PURE__*/React.createElement("div", {
-    style: {
-      color: "#ef4444",
-      fontSize: 12,
-      marginTop: 5
-    }
-  }, "\u2717 Contrase\xF1a incorrecta.")), /*#__PURE__*/React.createElement("button", {
-    onClick: handleRoleConfirm,
-    disabled: !roleTarget || !pwInput,
-    style: {
-      width: "100%",
-      padding: "11px",
-      borderRadius: 9,
-      border: "none",
-      background: roleTarget && pwInput ? "#185FA5" : "#1e3a5f",
-      color: roleTarget && pwInput ? "#fff" : "#475569",
-      fontWeight: 700,
-      fontSize: 15,
-      cursor: roleTarget && pwInput ? "pointer" : "default",
-      transition: "background .2s"
-    }
-  }, "Ingresar"))), /*#__PURE__*/React.createElement("div", {
-    style: {
-      background: darkMode ? "#0f3460" : "#1e3a5f",
-      color: "#fff",
-      padding: "10px 20px",
-      display: "flex",
-      alignItems: "center",
-      gap: 12,
-      borderBottom: "2px solid #185FA5"
-    }
-  }, /*#__PURE__*/React.createElement("span", {
-    style: {
-      fontWeight: 700,
-      fontSize: 18
-    }
-  }, "\uD83C\uDF93 Horarios Audiovisuales"), /*#__PURE__*/React.createElement("span", {
-    style: {
-      flex: 1,
-      fontSize: 12,
-      color: "#93c5fd"
-    }
-  }, "Sistema de Gesti\xF3n \xB7 ", sedes.length, " Sedes"), storageReady && /*#__PURE__*/React.createElement("span", {
-    style: {
-      fontSize: 11,
-      color: saving ? "#fbbf24" : "#4ade80"
-    }
-  }, saving ? "💾 Guardando…" : "✓ Guardado"), /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: "flex",
-      alignItems: "center",
-      gap: 8
-    }
-  }, /*#__PURE__*/React.createElement("span", {
-    style: {
-      fontSize: 12,
-      color: "#93c5fd"
-    }
-  }, ROLES[role]), /*#__PURE__*/React.createElement("button", {
-    onClick: () => {
-      setRoleTarget(role);
-      setPwInput("");
-      setPwError(false);
-      setShowRoleModal(true);
-    },
-    style: {
-      fontSize: 12,
-      background: "transparent",
-      border: "1px solid #3b82f6",
-      color: "#93c5fd",
-      borderRadius: 6,
-      padding: "3px 10px",
-      cursor: "pointer"
-    }
-  }, "\uD83D\uDD11 Cambiar rol"), /*#__PURE__*/React.createElement("button", {
-    onClick: () => {
-      setRole(null);
-      setRoleTarget("");
-      setPwInput("");
-      setPwError(false);
-    },
-    style: {
-      fontSize: 12,
-      background: "transparent",
-      border: "1px solid #ef4444",
-      color: "#fca5a5",
-      borderRadius: 6,
-      padding: "3px 10px",
-      cursor: "pointer"
-    }
-  }, "\u23FB Salir")), /*#__PURE__*/React.createElement("button", {
-    onClick: () => setDarkMode(d => !d),
-    style: {
-      background: "transparent",
-      border: "1px solid #3b82f6",
-      color: "#93c5fd",
-      borderRadius: 6,
-      padding: "3px 10px",
-      cursor: "pointer",
-      fontSize: 12
-    }
-  }, darkMode ? "☀ Claro" : "◑ Oscuro")), /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: "flex",
-      background: headerBg,
-      borderBottom: `1px solid ${border}`,
-      padding: "0 16px",
-      overflowX: "auto"
-    }
-  }, [["grilla", "Grilla Semanal"], ["semestre", "Por Semestre"], ["docente", "Por Docente"], ["salon", "Por Salón"], ["gestion", "Gestión"], ["stats", "Estadísticas"]].map(([t, l]) => /*#__PURE__*/React.createElement("button", {
-    key: t,
-    onClick: () => {
-      setTab(t);
-      setFilterDocente("");
-      setFilterSemestre("");
-      setFilterSalon("");
-    },
-    style: tabSt(tab === t)
-  }, l))), /*#__PURE__*/React.createElement(FilterBar, {
-    tab: tab,
-    sede: sede,
-    setSede: setSede,
-    sedes: sedes,
-    filterDocente: filterDocente,
-    setFilterDocente: setFilterDocente,
-    filterSemestre: filterSemestre,
-    setFilterSemestre: setFilterSemestre,
-    filterSalon: filterSalon,
-    setFilterSalon: setFilterSalon,
-    jornadasOn: jornadasOn,
-    setJornadasOn: setJornadasOn,
-    docentes: docentes,
-    salones: salones,
-    border: border,
-    text: text,
-    muted: muted,
-    surface: surface,
-    canEdit: canEdit,
-    onNewClase: openNewClase
-  }), tab === "grilla" && activeHours.length === 0 && /*#__PURE__*/React.createElement("div", {
-    style: {
-      margin: 16,
-      padding: 14,
-      background: "#fef3c7",
-      border: "1px solid #b45309",
-      borderRadius: 8,
-      color: "#b45309",
-      fontSize: 13
-    }
-  }, "Activa al menos una jornada para ver el horario."), /*#__PURE__*/React.createElement("div", {
-    style: {
-      padding: 16
-    }
-  }, !sede && (tab === "grilla" || tab === "semestre") && /*#__PURE__*/React.createElement("div", {
-    style: {
-      textAlign: "center",
-      padding: 60,
-      color: "#94a3b8",
-      fontSize: 15
-    }
-  }, "Selecciona una sede para ver los horarios."), (sede || tab === "docente" || tab === "salon") && (tab === "grilla" || tab === "semestre" || tab === "docente" || tab === "salon") && (() => {
-    const sedeName = sedes.find(s => s.id === sede)?.name || sede;
-    const enriched = filtered.map(c => ({
-      ...c,
-      docente_name: docentes.find(d => d.id === c.docente)?.name || (c.docente === "pendiente" ? "Pendiente" : c.docente),
-      sede_name: sedeName
-    }));
-    const xlsLabel = tab === "docente" && filterDocente === "pendiente" ? "Docente_Pendiente" : tab === "docente" && filterDocente ? docentes.find(d => d.id === filterDocente)?.name?.replace(/\s+/g, "_") || filterDocente : tab === "salon" && filterSalon === "pendiente" ? "Salon_Pendiente" : tab === "salon" && filterSalon ? filterSalon : tab === "semestre" && filterSemestre ? `Semestre_${filterSemestre}` : sedeName.replace(/\s+/g, "_");
-    return /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
-      style: {
-        display: "flex",
-        justifyContent: "flex-end",
-        marginBottom: 10
-      }
-    }, /*#__PURE__*/React.createElement("button", {
-      onClick: () => exportRaw(enriched, xlsLabel, `Horario_${xlsLabel}.xlsx`),
-      style: {
-        display: "flex",
-        alignItems: "center",
-        gap: 6,
-        padding: "6px 16px",
-        borderRadius: 8,
-        border: "2px solid #0F6E56",
-        background: "#0F6E56",
-        color: "#fff",
-        cursor: "pointer",
-        fontSize: 13,
-        fontWeight: 600
-      }
-    }, "\u2B07 Descargar .xlsx")), /*#__PURE__*/React.createElement(CalGrid, {
-      classes: enriched.map(ann),
-      dias: DAYS,
-      hours: tab === "grilla" ? activeHours : ALL_HOURS,
-      border: border,
-      headerBg: headerBg,
-      text: text,
-      muted: muted,
-      onEdit: openEditClase,
-      canEdit: canEdit,
-      colorFn: tab === "docente" ? cls => {
-        const s = sedes.find(sd => sd.id === cls.sede);
-        return s?.color || getDocColor(cls.docente, docentes);
-      } : jCol,
-      dragId: tab === "grilla" ? dragId : undefined,
-      setDragId: tab === "grilla" ? setDragId : undefined,
-      dropTarget: tab === "grilla" ? dropTarget : undefined,
-      setDropTarget: tab === "grilla" ? setDropTarget : undefined,
-      onDrop: tab === "grilla" ? handleDrop : undefined,
-      dropValid: tab === "grilla" ? dropValid : undefined
-    }));
-  })(), tab === "gestion" && /*#__PURE__*/React.createElement(GestionView, {
-    docentes: docentes,
-    salones: salones,
-    sedes: sedes,
-    sede: sede,
-    materias: materias,
-    setMaterias: setMaterias,
-    classes: classes,
-    setClasses: setClasses,
-    border: border,
-    text: text,
-    muted: muted,
-    surface: surface,
-    canEdit: canEdit,
-    onNewDoc: openNewDoc,
-    onEditDoc: openEditDoc,
-    onNewSede: openNewSede,
-    onEditSede: openEditSede,
-    onDelSalon: delSalon,
-    onEditSalon: editSalonFn,
-    newSalon: newSalon,
-    setNewSalon: setNewSalon,
-    saveSalon: saveSalon,
-    gTab: gTab,
-    setGTab: setGTab
-  }), tab === "stats" && /*#__PURE__*/React.createElement(StatsView, {
-    classes: filtered,
-    allClasses: classes,
-    docentes: docentes,
-    sedes: sedes,
-    sede: sede,
-    border: border,
-    text: text,
-    muted: muted,
-    surface: surface
-  })), showRoleModal && role && /*#__PURE__*/React.createElement(Overlay, null, /*#__PURE__*/React.createElement("div", {
-    style: {
-      background: surface,
-      borderRadius: 12,
-      padding: 28,
-      width: 360,
-      maxWidth: "95vw",
-      border: `1px solid ${border}`
-    }
-  }, /*#__PURE__*/React.createElement("h2", {
-    style: {
-      margin: "0 0 4px",
-      fontSize: 17,
-      fontWeight: 700,
-      color: text
-    }
-  }, "Cambiar rol"), /*#__PURE__*/React.createElement("p", {
-    style: {
-      margin: "0 0 18px",
-      fontSize: 13,
-      color: muted
-    }
-  }, "Selecciona un rol. Los roles con privilegios requieren contrase\xF1a."), /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: "flex",
-      flexDirection: "column",
-      gap: 8,
-      marginBottom: 18
-    }
-  }, Object.entries(ROLES).map(([k, v]) => {
-    const locked = !!ROLE_PASSWORDS[k];
-    const active = roleTarget === k;
-    return /*#__PURE__*/React.createElement("button", {
-      key: k,
-      onClick: () => {
-        setRoleTarget(k);
-        setPwInput("");
-        setPwError(false);
-      },
-      style: {
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
-        padding: "10px 14px",
-        borderRadius: 8,
-        border: `2px solid ${active ? "#185FA5" : border}`,
-        background: active ? "#eff6ff" : surface,
-        cursor: "pointer",
-        textAlign: "left"
-      }
-    }, /*#__PURE__*/React.createElement("span", {
-      style: {
-        fontWeight: active ? 600 : 400,
-        color: active ? "#185FA5" : text,
-        fontSize: 14
-      }
-    }, v), locked ? /*#__PURE__*/React.createElement("span", {
-      style: {
-        fontSize: 12,
-        color: muted
-      }
-    }, "\uD83D\uDD12 Contrase\xF1a") : /*#__PURE__*/React.createElement("span", {
-      style: {
-        fontSize: 12,
-        color: "#16a34a"
-      }
-    }, "\u2713 Libre"));
-  })), roleTarget && ROLE_PASSWORDS[roleTarget] && /*#__PURE__*/React.createElement("div", {
-    style: {
-      marginBottom: 14
-    }
-  }, /*#__PURE__*/React.createElement(Lbl, {
-    t: `Contraseña para "${ROLES[roleTarget]}"`,
-    muted: muted
-  }), /*#__PURE__*/React.createElement("input", {
-    type: "password",
-    value: pwInput,
-    onChange: e => {
-      setPwInput(e.target.value);
-      setPwError(false);
-    },
-    onKeyDown: e => {
-      if (e.key === "Enter") handleRoleConfirm();
-    },
-    placeholder: "Ingresa la contrase\xF1a",
-    style: {
-      ...inp(surface, border, text),
-      borderColor: pwError ? "#dc2626" : border
-    }
-  }), pwError && /*#__PURE__*/React.createElement("div", {
-    style: {
-      color: "#dc2626",
-      fontSize: 12,
-      marginTop: 4
-    }
-  }, "\u2717 Contrase\xF1a incorrecta.")), /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: "flex",
-      gap: 8,
-      justifyContent: "flex-end"
-    }
-  }, /*#__PURE__*/React.createElement("button", {
-    onClick: () => setShowRoleModal(false),
-    style: btn("transparent", muted, border)
-  }, "Cancelar"), /*#__PURE__*/React.createElement("button", {
-    onClick: handleRoleConfirm,
-    disabled: !roleTarget,
-    style: {
-      ...btn(roleTarget ? "#185FA5" : "#cbd5e1", roleTarget ? "#fff" : muted),
-      fontWeight: 600,
-      opacity: roleTarget ? 1 : .6
-    }
-  }, "Confirmar")))), showClase && /*#__PURE__*/React.createElement(ClaseModal, {
-    initialForm: claseForm,
-    onSave: saveClase,
-    onDelete: delClase,
-    onClose: () => setShowClase(false),
-    editId: editClaseId,
-    classes: classes,
-    docentes: docentes,
-    sedes: sedes,
-    salones: salones,
-    materias: materias,
-    surface: surface,
-    border: border,
-    text: text,
-    muted: muted
-  }), showDoc && /*#__PURE__*/React.createElement(Overlay, null, /*#__PURE__*/React.createElement("div", {
-    style: {
-      background: surface,
-      borderRadius: 12,
-      padding: 24,
-      width: 400,
-      maxWidth: "95vw",
-      border: `1px solid ${border}`
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: "flex",
-      justifyContent: "space-between",
-      marginBottom: 16
-    }
-  }, /*#__PURE__*/React.createElement("h2", {
-    style: {
-      margin: 0,
-      fontSize: 17,
-      fontWeight: 600,
-      color: text
-    }
-  }, editDocId ? "Editar Docente" : "Nuevo Docente"), /*#__PURE__*/React.createElement("button", {
-    onClick: () => setShowDoc(false),
-    style: {
-      background: "transparent",
-      border: "none",
-      cursor: "pointer",
-      fontSize: 20,
-      color: muted
-    }
-  }, "\xD7")), /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: "flex",
-      flexDirection: "column",
-      gap: 10
-    }
-  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Lbl, {
-    t: "Nombre",
-    muted: muted
-  }), /*#__PURE__*/React.createElement("input", {
-    value: docForm.name,
-    onChange: e => setDocForm(f => ({
-      ...f,
-      name: e.target.value
-    })),
-    style: inp(surface, border, text)
-  })), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Lbl, {
-    t: "Correo",
-    muted: muted
-  }), /*#__PURE__*/React.createElement("input", {
-    value: docForm.email,
-    onChange: e => setDocForm(f => ({
-      ...f,
-      email: e.target.value
-    })),
-    style: inp(surface, border, text)
-  }))), /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: "flex",
-      gap: 8,
-      marginTop: 16,
-      justifyContent: "space-between"
-    }
-  }, /*#__PURE__*/React.createElement("div", null, editDocId && /*#__PURE__*/React.createElement("button", {
-    onClick: delDoc,
-    style: btn("#fee2e2", "#991b1b")
-  }, "Eliminar")), /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: "flex",
-      gap: 8
-    }
-  }, /*#__PURE__*/React.createElement("button", {
-    onClick: () => setShowDoc(false),
-    style: btn("transparent", muted, border)
-  }, "Cancelar"), /*#__PURE__*/React.createElement("button", {
-    onClick: saveDoc,
-    style: {
-      ...btn("#185FA5", "#fff"),
-      fontWeight: 600
-    }
-  }, "Guardar"))))), showSede && /*#__PURE__*/React.createElement(Overlay, null, /*#__PURE__*/React.createElement("div", {
-    style: {
-      background: surface,
-      borderRadius: 12,
-      padding: 24,
-      width: 380,
-      maxWidth: "95vw",
-      border: `1px solid ${border}`
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: "flex",
-      justifyContent: "space-between",
-      marginBottom: 16
-    }
-  }, /*#__PURE__*/React.createElement("h2", {
-    style: {
-      margin: 0,
-      fontSize: 17,
-      fontWeight: 600,
-      color: text
-    }
-  }, editSedeId ? "Editar Sede" : "Nueva Sede"), /*#__PURE__*/React.createElement("button", {
-    onClick: () => setShowSede(false),
-    style: {
-      background: "transparent",
-      border: "none",
-      cursor: "pointer",
-      fontSize: 20,
-      color: muted
-    }
-  }, "\xD7")), /*#__PURE__*/React.createElement(Lbl, {
-    t: "Nombre de la sede",
-    muted: muted
-  }), /*#__PURE__*/React.createElement("input", {
-    value: sedeForm.name,
-    onChange: e => setSedeForm({
-      name: e.target.value
-    }),
-    placeholder: "Ej: Sede Oriente",
-    style: inp(surface, border, text)
-  }), /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: "flex",
-      gap: 8,
-      marginTop: 16,
-      justifyContent: "space-between"
-    }
-  }, /*#__PURE__*/React.createElement("div", null, editSedeId && /*#__PURE__*/React.createElement("button", {
-    onClick: delSede,
-    style: btn("#fee2e2", "#991b1b")
-  }, "Eliminar")), /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: "flex",
-      gap: 8
-    }
-  }, /*#__PURE__*/React.createElement("button", {
-    onClick: () => setShowSede(false),
-    style: btn("transparent", muted, border)
-  }, "Cancelar"), /*#__PURE__*/React.createElement("button", {
-    onClick: saveSede,
-    style: {
-      ...btn("#7F77DD", "#fff"),
-      fontWeight: 600
-    }
-  }, "Guardar"))))), toast && /*#__PURE__*/React.createElement("div", {
-    style: {
-      position: "fixed",
-      bottom: 24,
-      right: 24,
-      background: toast.type === "danger" ? "#fee2e2" : "#dcfce7",
-      color: toast.type === "danger" ? "#991b1b" : "#166534",
-      padding: "10px 20px",
-      borderRadius: 8,
-      fontSize: 13,
-      fontWeight: 500,
-      zIndex: 2000,
-      boxShadow: "0 4px 12px rgba(0,0,0,.15)"
-    }
-  }, toast.type === "danger" ? "✗ " : "✓ ", toast.msg));
+
+  const bg=darkMode?"#1a1a2e":"#f7f8fc";
+  const surface=darkMode?"#16213e":"#fff";
+  const border=darkMode?"#2d3561":"#e5e7ef";
+  const text=darkMode?"#e2e8f0":"#1e293b";
+  const muted=darkMode?"#94a3b8":"#64748b";
+  const headerBg=darkMode?"#0f3460":"#f1f5f9";
+  const tabSt=a=>({padding:"10px 16px",border:"none",borderBottom:a?"2px solid #185FA5":"2px solid transparent",background:"transparent",color:a?"#185FA5":muted,fontWeight:a?600:400,cursor:"pointer",fontSize:13,whiteSpace:"nowrap"});
+
+  return(
+    <div style={{minHeight:"100vh",background:bg,color:text,fontFamily:"system-ui,sans-serif",fontSize:14}}>
+      {!role&&(
+        <div style={{position:"fixed",inset:0,background:"#0f172a",display:"flex",alignItems:"center",justifyContent:"center",zIndex:2000}}>
+          <div style={{background:"#1e293b",borderRadius:16,padding:36,width:400,maxWidth:"95vw",border:"1px solid #334155",boxShadow:"0 25px 60px rgba(0,0,0,.6)"}}>
+            <div style={{textAlign:"center",marginBottom:28}}>
+              <div style={{fontSize:40,marginBottom:8}}>🎓</div>
+              <h1 style={{margin:0,fontSize:22,fontWeight:700,color:"#f1f5f9"}}>Horarios Audiovisuales</h1>
+              <p style={{margin:"6px 0 0",fontSize:13,color:"#64748b"}}>Ingresa con tu rol para continuar</p>
+            </div>
+            <div style={{display:"flex",flexDirection:"column",gap:8,marginBottom:20}}>
+              {Object.entries(ROLES).map(([k,v])=>{
+                const active=roleTarget===k;
+                return(
+                  <button key={k} onClick={()=>{setRoleTarget(k);setPwInput("");setPwError(false);}}
+                    style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"11px 16px",borderRadius:9,border:`2px solid ${active?"#3b82f6":"#334155"}`,background:active?"#1d3a5f":"transparent",cursor:"pointer",textAlign:"left",transition:"all .15s"}}>
+                    <span style={{fontWeight:active?600:400,color:active?"#93c5fd":"#cbd5e1",fontSize:14}}>{v}</span>
+                    <span style={{fontSize:12,color:"#64748b"}}>🔒</span>
+                  </button>
+                );
+              })}
+            </div>
+            {roleTarget&&(
+              <div style={{marginBottom:16}}>
+                <div style={{fontSize:12,color:"#64748b",marginBottom:6}}>Contraseña para <strong style={{color:"#93c5fd"}}>{ROLES[roleTarget]}</strong></div>
+                <input type="password" value={pwInput} onChange={e=>{setPwInput(e.target.value);setPwError(false);}}
+                  onKeyDown={e=>{if(e.key==="Enter")handleRoleConfirm();}}
+                  autoFocus placeholder="Contraseña"
+                  style={{width:"100%",padding:"10px 14px",borderRadius:8,border:`1.5px solid ${pwError?"#ef4444":"#334155"}`,background:"#0f172a",color:"#f1f5f9",fontSize:14,boxSizing:"border-box",outline:"none"}}/>
+                {pwError&&<div style={{color:"#ef4444",fontSize:12,marginTop:5}}>✗ Contraseña incorrecta.</div>}
+              </div>
+            )}
+            <button onClick={handleRoleConfirm} disabled={!roleTarget||!pwInput}
+              style={{width:"100%",padding:"11px",borderRadius:9,border:"none",background:roleTarget&&pwInput?"#185FA5":"#1e3a5f",color:roleTarget&&pwInput?"#fff":"#475569",fontWeight:700,fontSize:15,cursor:roleTarget&&pwInput?"pointer":"default",transition:"background .2s"}}>
+              Ingresar
+            </button>
+          </div>
+        </div>
+      )}
+
+      <div style={{background:darkMode?"#0f3460":"#1e3a5f",color:"#fff",padding:"10px 20px",display:"flex",alignItems:"center",gap:12,borderBottom:"2px solid #185FA5"}}>
+        <span style={{fontWeight:700,fontSize:18}}>🎓 Horarios Audiovisuales</span>
+        <span style={{flex:1,fontSize:12,color:"#93c5fd"}}>Sistema de Gestión · {sedes.length} Sedes</span>
+        {storageReady&&<span style={{fontSize:11,color:saving?"#fbbf24":"#4ade80"}}>{saving?"💾 Guardando…":"✓ Guardado"}</span>}
+        <div style={{display:"flex",alignItems:"center",gap:8}}>
+          <span style={{fontSize:12,color:"#93c5fd"}}>{ROLES[role]}</span>
+          <button onClick={()=>{setRoleTarget(role);setPwInput("");setPwError(false);setShowRoleModal(true);}}
+            style={{fontSize:12,background:"transparent",border:"1px solid #3b82f6",color:"#93c5fd",borderRadius:6,padding:"3px 10px",cursor:"pointer"}}>
+            🔑 Cambiar rol
+          </button>
+          <button onClick={()=>{setRole(null);setRoleTarget("");setPwInput("");setPwError(false);}}
+            style={{fontSize:12,background:"transparent",border:"1px solid #ef4444",color:"#fca5a5",borderRadius:6,padding:"3px 10px",cursor:"pointer"}}>
+            ⏻ Salir
+          </button>
+        </div>
+        <button onClick={()=>setDarkMode(d=>!d)} style={{background:"transparent",border:"1px solid #3b82f6",color:"#93c5fd",borderRadius:6,padding:"3px 10px",cursor:"pointer",fontSize:12}}>{darkMode?"☀ Claro":"◑ Oscuro"}</button>
+      </div>
+
+      <div style={{display:"flex",background:headerBg,borderBottom:`1px solid ${border}`,padding:"0 16px",overflowX:"auto"}}>
+        {[["grilla","Grilla Semanal"],["semestre","Por Semestre"],["docente","Por Docente"],["salon","Por Salón"],["gestion","Gestión"],["stats","Estadísticas"]].map(([t,l])=>(
+          <button key={t} onClick={()=>{setTab(t);setFilterDocente("");setFilterSemestre("");setFilterSalon("");}} style={tabSt(tab===t)}>{l}</button>
+        ))}
+      </div>
+
+      <FilterBar tab={tab} sede={sede} setSede={setSede} sedes={sedes}
+        filterDocente={filterDocente} setFilterDocente={setFilterDocente}
+        filterSemestre={filterSemestre} setFilterSemestre={setFilterSemestre}
+        filterSalon={filterSalon} setFilterSalon={setFilterSalon}
+        jornadasOn={jornadasOn} setJornadasOn={setJornadasOn}
+        docentes={docentes} salones={salones}
+        border={border} text={text} muted={muted} surface={surface}
+        canEdit={canEdit} onNewClase={openNewClase} onNewBloqueo={()=>setShowBloqueo(true)}/>
+
+      {tab==="grilla"&&activeHours.length===0&&(
+        <div style={{margin:16,padding:14,background:"#fef3c7",border:"1px solid #b45309",borderRadius:8,color:"#b45309",fontSize:13}}>Activa al menos una jornada para ver el horario.</div>
+      )}
+
+      <div style={{padding:16}}>
+        {!sede&&(tab==="grilla"||tab==="semestre")&&(
+          <div style={{textAlign:"center",padding:60,color:"#94a3b8",fontSize:15}}>Selecciona una sede para ver los horarios.</div>
+        )}
+        {(sede||(tab==="docente"||tab==="salon"))&&(tab==="grilla"||tab==="semestre"||tab==="docente"||tab==="salon")&&(()=>{
+          const sedeName=sedes.find(s=>s.id===sede)?.name||sede;
+          const enriched=filtered.map(c=>({...c,
+            docente_name:docentes.find(d=>d.id===c.docente)?.name||(c.docente==="pendiente"?"Pendiente":c.docente),
+            sede_name:sedeName
+          }));
+          const xlsLabel=
+            tab==="docente"&&filterDocente==="pendiente"?"Docente_Pendiente":
+            tab==="docente"&&filterDocente?docentes.find(d=>d.id===filterDocente)?.name?.replace(/\s+/g,"_")||filterDocente:
+            tab==="salon"&&filterSalon==="pendiente"?"Salon_Pendiente":
+            tab==="salon"&&filterSalon?filterSalon:
+            tab==="semestre"&&filterSemestre?`Semestre_${filterSemestre}`:
+            sedeName.replace(/\s+/g,"_");
+          return(<>
+            <div style={{display:"flex",justifyContent:"flex-end",marginBottom:10}}>
+              <button onClick={()=>exportRaw(enriched,xlsLabel,`Horario_${xlsLabel}.xlsx`,sedes,tab==="docente"&&filterDocente&&filterDocente!=="pendiente"?docentes.find(d=>d.id===filterDocente)?.name||"":"")}
+                style={{display:"flex",alignItems:"center",gap:6,padding:"6px 16px",borderRadius:8,border:"2px solid #0F6E56",background:"#0F6E56",color:"#fff",cursor:"pointer",fontSize:13,fontWeight:600}}>
+                ⬇ Descargar .xlsx
+              </button>
+            </div>
+            <CalGrid classes={enriched.map(ann)} dias={DAYS} hours={tab==="grilla"?activeHours:ALL_HOURS}
+              border={border} headerBg={headerBg} text={text} muted={muted}
+              onEdit={openEditClase} canEdit={canEdit}
+              colorFn={tab==="docente"?cls=>{const s=sedes.find(sd=>sd.id===cls.sede);return s?.color||getDocColor(cls.docente,docentes);}:jCol}
+              dragId={tab==="grilla"?dragId:undefined}
+              setDragId={tab==="grilla"?setDragId:undefined}
+              dropTarget={tab==="grilla"?dropTarget:undefined}
+              setDropTarget={tab==="grilla"?setDropTarget:undefined}
+              onDrop={tab==="grilla"?handleDrop:undefined}
+              dropValid={tab==="grilla"?dropValid:undefined}
+            bloqueos={bloqueos}
+            filterDocente={filterDocente}
+            onDelBloqueo={delBloqueo}/>
+          </>);
+        })()}
+        {tab==="gestion"&&(
+          <GestionView docentes={docentes} salones={salones} sedes={sedes} sede={sede}
+            materias={materias} setMaterias={setMaterias} classes={classes} setClasses={setClasses}
+            border={border} text={text} muted={muted} surface={surface} canEdit={canEdit}
+            onNewDoc={openNewDoc} onEditDoc={openEditDoc}
+            onNewSede={openNewSede} onEditSede={openEditSede}
+            onDelSalon={delSalon} onEditSalon={editSalonFn} newSalon={newSalon} setNewSalon={setNewSalon} saveSalon={saveSalon}
+            gTab={gTab} setGTab={setGTab}/>
+        )}
+        {tab==="stats"&&(
+          <StatsView classes={filtered} allClasses={classes} docentes={docentes}
+            sedes={sedes} sede={sede} border={border} text={text} muted={muted} surface={surface}/>
+        )}
+      </div>
+
+      {showRoleModal&&role&&(
+        <Overlay>
+          <div style={{background:surface,borderRadius:12,padding:28,width:360,maxWidth:"95vw",border:`1px solid ${border}`}}>
+            <h2 style={{margin:"0 0 4px",fontSize:17,fontWeight:700,color:text}}>Cambiar rol</h2>
+            <p style={{margin:"0 0 18px",fontSize:13,color:muted}}>Selecciona un rol. Los roles con privilegios requieren contraseña.</p>
+            <div style={{display:"flex",flexDirection:"column",gap:8,marginBottom:18}}>
+              {Object.entries(ROLES).map(([k,v])=>{
+                const locked=!!ROLE_PASSWORDS[k];
+                const active=roleTarget===k;
+                return(
+                  <button key={k} onClick={()=>{setRoleTarget(k);setPwInput("");setPwError(false);}}
+                    style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 14px",borderRadius:8,border:`2px solid ${active?"#185FA5":border}`,background:active?"#eff6ff":surface,cursor:"pointer",textAlign:"left"}}>
+                    <span style={{fontWeight:active?600:400,color:active?"#185FA5":text,fontSize:14}}>{v}</span>
+                    {locked?<span style={{fontSize:12,color:muted}}>🔒 Contraseña</span>:<span style={{fontSize:12,color:"#16a34a"}}>✓ Libre</span>}
+                  </button>
+                );
+              })}
+            </div>
+            {roleTarget&&ROLE_PASSWORDS[roleTarget]&&(
+              <div style={{marginBottom:14}}>
+                <Lbl t={`Contraseña para "${ROLES[roleTarget]}"`} muted={muted}/>
+                <input type="password" value={pwInput} onChange={e=>{setPwInput(e.target.value);setPwError(false);}}
+                  onKeyDown={e=>{if(e.key==="Enter")handleRoleConfirm();}}
+                  placeholder="Ingresa la contraseña"
+                  style={{...inp(surface,border,text),borderColor:pwError?"#dc2626":border}}/>
+                {pwError&&<div style={{color:"#dc2626",fontSize:12,marginTop:4}}>✗ Contraseña incorrecta.</div>}
+              </div>
+            )}
+            <div style={{display:"flex",gap:8,justifyContent:"flex-end"}}>
+              <button onClick={()=>setShowRoleModal(false)} style={btn("transparent",muted,border)}>Cancelar</button>
+              <button onClick={handleRoleConfirm} disabled={!roleTarget}
+                style={{...btn(roleTarget?"#185FA5":"#cbd5e1",roleTarget?"#fff":muted),fontWeight:600,opacity:roleTarget?1:.6}}>
+                Confirmar
+              </button>
+            </div>
+          </div>
+        </Overlay>
+      )}
+
+      {showBloqueo&&<BloqueoModal
+        docentes={docentes} onSave={saveBloqueo} onClose={()=>setShowBloqueo(false)}
+        surface={surface} border={border} text={text} muted={muted}/>}
+      {showClase&&<ClaseModal initialForm={claseForm} onSave={saveClase} onDelete={delClase} onClose={()=>setShowClase(false)} editId={editClaseId} classes={classes} docentes={docentes} sedes={sedes} salones={salones} materias={materias} surface={surface} border={border} text={text} muted={muted} bloqueos={bloqueos}/>}
+
+      {showDoc&&(
+        <Overlay>
+          <div style={{background:surface,borderRadius:12,padding:24,width:400,maxWidth:"95vw",border:`1px solid ${border}`}}>
+            <div style={{display:"flex",justifyContent:"space-between",marginBottom:16}}>
+              <h2 style={{margin:0,fontSize:17,fontWeight:600,color:text}}>{editDocId?"Editar Docente":"Nuevo Docente"}</h2>
+              <button onClick={()=>setShowDoc(false)} style={{background:"transparent",border:"none",cursor:"pointer",fontSize:20,color:muted}}>×</button>
+            </div>
+            <div style={{display:"flex",flexDirection:"column",gap:10}}>
+              <div><Lbl t="Nombre" muted={muted}/><input value={docForm.name} onChange={e=>setDocForm(f=>({...f,name:e.target.value}))} style={inp(surface,border,text)}/></div>
+              <div><Lbl t="Correo" muted={muted}/><input value={docForm.email} onChange={e=>setDocForm(f=>({...f,email:e.target.value}))} style={inp(surface,border,text)}/></div>
+            </div>
+            <div style={{display:"flex",gap:8,marginTop:16,justifyContent:"space-between"}}>
+              <div>{editDocId&&<button onClick={delDoc} style={btn("#fee2e2","#991b1b")}>Eliminar</button>}</div>
+              <div style={{display:"flex",gap:8}}>
+                <button onClick={()=>setShowDoc(false)} style={btn("transparent",muted,border)}>Cancelar</button>
+                <button onClick={saveDoc} style={{...btn("#185FA5","#fff"),fontWeight:600}}>Guardar</button>
+              </div>
+            </div>
+          </div>
+        </Overlay>
+      )}
+
+      {showSede&&(
+        <Overlay>
+          <div style={{background:surface,borderRadius:12,padding:24,width:380,maxWidth:"95vw",border:`1px solid ${border}`}}>
+            <div style={{display:"flex",justifyContent:"space-between",marginBottom:16}}>
+              <h2 style={{margin:0,fontSize:17,fontWeight:600,color:text}}>{editSedeId?"Editar Sede":"Nueva Sede"}</h2>
+              <button onClick={()=>setShowSede(false)} style={{background:"transparent",border:"none",cursor:"pointer",fontSize:20,color:muted}}>×</button>
+            </div>
+            <Lbl t="Nombre de la sede" muted={muted}/>
+            <input value={sedeForm.name} onChange={e=>setSedeForm({name:e.target.value})} placeholder="Ej: Sede Oriente" style={inp(surface,border,text)}/>
+            <div style={{display:"flex",gap:8,marginTop:16,justifyContent:"space-between"}}>
+              <div>{editSedeId&&<button onClick={delSede} style={btn("#fee2e2","#991b1b")}>Eliminar</button>}</div>
+              <div style={{display:"flex",gap:8}}>
+                <button onClick={()=>setShowSede(false)} style={btn("transparent",muted,border)}>Cancelar</button>
+                <button onClick={saveSede} style={{...btn("#7F77DD","#fff"),fontWeight:600}}>Guardar</button>
+              </div>
+            </div>
+          </div>
+        </Overlay>
+      )}
+
+      {toast&&<div style={{position:"fixed",bottom:24,right:24,background:toast.type==="danger"?"#fee2e2":"#dcfce7",color:toast.type==="danger"?"#991b1b":"#166534",padding:"10px 20px",borderRadius:8,fontSize:13,fontWeight:500,zIndex:2000,boxShadow:"0 4px 12px rgba(0,0,0,.15)"}}>{toast.type==="danger"?"✗ ":"✓ "}{toast.msg}</div>}
+    </div>
+  );
 }
-ReactDOM.createRoot(document.getElementById("root")).render(/*#__PURE__*/React.createElement(App, null));
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
 </script>
 </body>
 </html>
